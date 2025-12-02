@@ -3,61 +3,77 @@
 export default async function handler(req, res) {
   // POST 以外は拒否
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  // リクエストボディを読み取り
+  let rawBody = "";
+  for await (const chunk of req) {
+    rawBody += chunk;
+  }
+
+  let messages;
+  try {
+    const parsed = JSON.parse(rawBody || "{}");
+    messages = parsed.messages;
+    if (!Array.isArray(messages)) {
+      throw new Error("messages must be an array");
+    }
+  } catch (e) {
+    console.error("Invalid JSON:", e);
+    res.status(400).json({ error: "Invalid JSON" });
+    return;
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error("OPENAI_API_KEY is not set");
+    res.status(500).json({ error: "Missing OPENAI_API_KEY" });
+    return;
   }
 
   try {
-    // フロントから送られてきた messages を取得
-    const { messages } = req.body || {};
-    if (!Array.isArray(messages)) {
-      return res.status(400).json({ error: "messages is required and must be an array" });
-    }
+    // OpenAI REST を生で叩く
+    const payload = {
+      model: "gpt-4.1-mini", // or gpt-4.1 / gpt-4.1-mini など
+      messages,
+      max_tokens: 800,
+      temperature: 0.8,
+    };
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      console.error("OPENAI_API_KEY is not set");
-      return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
-    }
-
-    // OpenAI Chat Completions を素の fetch で呼ぶ
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const oaRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",   // ここは使いたいモデルに合わせて変更可
-        messages,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(payload),
     });
 
-    const data = await openaiRes.json();
+    const text = await oaRes.text();
 
-    // エラー時は内容をそのまま返しておく（デバッグ用）
-    if (!openaiRes.ok) {
-      console.error("OpenAI API error:", openaiRes.status, data);
-      return res.status(500).json({
-        error: "OpenAI API error",
-        detail: data,
+    if (!oaRes.ok) {
+      console.error("OpenAI API error:", oaRes.status, text);
+      res.status(500).json({
+        error: "Server error while calling OpenAI",
+        detail: text,
       });
+      return;
     }
 
+    const data = JSON.parse(text);
     const content =
-      (data.choices &&
-        data.choices[0] &&
-        data.choices[0].message &&
-        data.choices[0].message.content) ||
-      "";
+      data.choices?.[0]?.message?.content != null
+        ? data.choices[0].message.content
+        : "";
 
-    return res.status(200).json({ content });
+    res.status(200).json({ content });
   } catch (err) {
-    console.error("Unexpected error in /api/chat:", err);
-    return res.status(500).json({
-      error: "Server error while calling OpenAI (wrapper)",
-      detail: String(err && err.message ? err.message : err),
+    console.error("Unexpected server error:", err);
+    res.status(500).json({
+      error: "Unexpected server error",
+      detail: String(err),
     });
   }
 }
