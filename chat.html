@@ -216,7 +216,7 @@
       font-size: 11px;
     }
     .choice.secondary {
-      background: #e5e7eb;
+     背景: #e5e7eb;
       color: #111827;
     }
     .choice:focus {
@@ -805,7 +805,7 @@ function showAsk(){
 }
 
 /* ===========================
-   7) OpenAI 呼び出し
+   7) OpenAI 呼び出し（/api/chat 経由）
    =========================== */
 async function callOpenAI(messages){
   const res = await fetch("/api/chat", {
@@ -825,7 +825,7 @@ async function callOpenAI(messages){
   // /api/chat.js 側で { content: "仙人の返答" } を返している想定
   return data.content || "";
 }
-  
+
 /* ===========================
    8) 共通 system ＋ フェーズ別 system
    =========================== */
@@ -1257,4 +1257,3 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
-
