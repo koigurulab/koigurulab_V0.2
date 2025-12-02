@@ -1,28 +1,26 @@
-// /api/chat.js
+// api/chat.js
 
 export default async function handler(req, res) {
-  // 1) メソッドチェック
+  // POST 以外は拒否
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
-
-  // 2) ボディチェック
-  const { messages } = req.body || {};
-  if (!messages) {
-    res.status(400).json({ error: "messages is required in body" });
-    return;
-  }
-
-  // 3) APIキーチェック（Vercel の環境変数を使う）
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    res.status(500).json({ error: "OPENAI_API_KEY is not set on server" });
-    return;
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    // 4) OpenAI API 叩く
+    // フロントから送られてきた messages を取得
+    const { messages } = req.body || {};
+    if (!Array.isArray(messages)) {
+      return res.status(400).json({ error: "messages is required and must be an array" });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error("OPENAI_API_KEY is not set");
+      return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
+    }
+
+    // OpenAI Chat Completions を素の fetch で呼ぶ
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -30,32 +28,36 @@ export default async function handler(req, res) {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini",           // ここは好きなモデル名に変えてOK（例: gpt-4o-mini）
+        model: "gpt-4o-mini",   // ここは使いたいモデルに合わせて変更可
         messages,
+        temperature: 0.7,
       }),
     });
 
-    const text = await openaiRes.text();
+    const data = await openaiRes.json();
 
-    // OpenAI 側のエラーは中身ごと返す
+    // エラー時は内容をそのまま返しておく（デバッグ用）
     if (!openaiRes.ok) {
-      res.status(500).json({
+      console.error("OpenAI API error:", openaiRes.status, data);
+      return res.status(500).json({
         error: "OpenAI API error",
-        status: openaiRes.status,
-        body: text,
+        detail: data,
       });
-      return;
     }
 
-    const data = JSON.parse(text);
-    const content = data?.choices?.[0]?.message?.content ?? "";
+    const content =
+      (data.choices &&
+        data.choices[0] &&
+        data.choices[0].message &&
+        data.choices[0].message.content) ||
+      "";
 
-    res.status(200).json({ content });
+    return res.status(200).json({ content });
   } catch (err) {
-    console.error("Server error:", err);
-    res.status(500).json({
-      error: "Server error while calling OpenAI",
-      detail: err.message || String(err),
+    console.error("Unexpected error in /api/chat:", err);
+    return res.status(500).json({
+      error: "Server error while calling OpenAI (wrapper)",
+      detail: String(err && err.message ? err.message : err),
     });
   }
 }
