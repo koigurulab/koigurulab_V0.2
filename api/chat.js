@@ -1,49 +1,61 @@
-// api/chat.js
+// /api/chat.js
+
 export default async function handler(req, res) {
+  // 1) メソッドチェック
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
+  // 2) ボディチェック
+  const { messages } = req.body || {};
+  if (!messages) {
+    res.status(400).json({ error: "messages is required in body" });
+    return;
+  }
+
+  // 3) APIキーチェック（Vercel の環境変数を使う）
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "OPENAI_API_KEY is not set" });
+    res.status(500).json({ error: "OPENAI_API_KEY is not set on server" });
     return;
   }
 
   try {
-    const { messages } = req.body || {};
-    if (!messages || !Array.isArray(messages)) {
-      res.status(400).json({ error: "messages is required" });
-      return;
-    }
-
+    // 4) OpenAI API 叩く
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini", // コスト抑えたいなら mini 推奨
+        model: "gpt-4.1-mini",           // ここは好きなモデル名に変えてOK（例: gpt-4o-mini）
         messages,
-        temperature: 0.85,
-        presence_penalty: 0.1,
       }),
     });
 
-    const data = await openaiRes.json();
+    const text = await openaiRes.text();
 
+    // OpenAI 側のエラーは中身ごと返す
     if (!openaiRes.ok) {
-      console.error("OpenAI error:", data);
-      res.status(500).json({ error: "OpenAI request failed" });
+      res.status(500).json({
+        error: "OpenAI API error",
+        status: openaiRes.status,
+        body: text,
+      });
       return;
     }
 
-    const content = data.choices?.[0]?.message?.content || "";
+    const data = JSON.parse(text);
+    const content = data?.choices?.[0]?.message?.content ?? "";
+
     res.status(200).json({ content });
   } catch (err) {
     console.error("Server error:", err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({
+      error: "Server error while calling OpenAI",
+      detail: err.message || String(err),
+    });
   }
 }
