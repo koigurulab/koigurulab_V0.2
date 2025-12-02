@@ -1,79 +1,65 @@
 // api/chat.js
+import OpenAI from "openai";
+
+// ここではまだ apiKey の中身は検証しない（作るだけ）
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export default async function handler(req, res) {
   // POST 以外は拒否
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
+    res.status(405).json({ error: "Method Not Allowed" });
     return;
   }
 
-  // リクエストボディを読み取り
-  let rawBody = "";
-  for await (const chunk of req) {
-    rawBody += chunk;
-  }
+  const apiKey = process.env.OPENAI_API_KEY || "";
 
-  let messages;
-  try {
-    const parsed = JSON.parse(rawBody || "{}");
-    messages = parsed.messages;
-    if (!Array.isArray(messages)) {
-      throw new Error("messages must be an array");
-    }
-  } catch (e) {
-    console.error("Invalid JSON:", e);
-    res.status(400).json({ error: "Invalid JSON" });
-    return;
-  }
-
-  const apiKey = process.env.OPENAI_API_KEY;
+  // 1) そもそも設定されてない
   if (!apiKey) {
     console.error("OPENAI_API_KEY is not set");
     res.status(500).json({ error: "Missing OPENAI_API_KEY" });
     return;
   }
 
-  try {
-    // OpenAI REST を生で叩く
-    const payload = {
-      model: "gpt-4.1-mini", // or gpt-4.1 / gpt-4.1-mini など
-      messages,
-      max_tokens: 800,
-      temperature: 0.8,
-    };
-
-    const oaRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+  // 2) ASCII 以外の文字が混ざっていないかチェック
+  //    OpenAI のキーは英数字と記号だけなので、
+  //    1 文字でも全角や日本語が入っていたら NG とする
+  const asciiOnly = /^[\x20-\x7E]+$/.test(apiKey);
+  if (!asciiOnly) {
+    console.error("OPENAI_API_KEY contains non-ASCII characters");
+    res.status(500).json({
+      error: "Invalid OPENAI_API_KEY",
+      detail:
+        "APIキーに全角文字や日本語が混ざっています。OpenAIのダッシュボードからコピペし直してください。",
     });
+    return;
+  }
 
-    const text = await oaRes.text();
+  // --- ここから通常処理 ---
+  try {
+    const body = req.body || {};
+    const messages = body.messages;
 
-    if (!oaRes.ok) {
-      console.error("OpenAI API error:", oaRes.status, text);
-      res.status(500).json({
-        error: "Server error while calling OpenAI",
-        detail: text,
-      });
+    if (!Array.isArray(messages)) {
+      res.status(400).json({ error: "Invalid body: messages must be an array." });
       return;
     }
 
-    const data = JSON.parse(text);
+    const completion = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages,
+    });
+
     const content =
-      data.choices?.[0]?.message?.content != null
-        ? data.choices[0].message.content
-        : "";
+      completion.choices?.[0]?.message?.content ?? "";
 
     res.status(200).json({ content });
   } catch (err) {
-    console.error("Unexpected server error:", err);
+    console.error("OpenAI call failed:", err);
     res.status(500).json({
-      error: "Unexpected server error",
-      detail: String(err),
+      error: "Server error while calling OpenAI",
+      detail: err.message ?? String(err),
     });
   }
 }
