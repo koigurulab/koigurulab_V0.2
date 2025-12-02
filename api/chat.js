@@ -1,50 +1,39 @@
-// api/chat.js
+// /api/chat.js
 
 export default async function handler(req, res) {
-  // 1) メソッドチェック
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method Not Allowed" });
-    return;
-  }
-
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  // 2) APIキー未設定
-  if (!apiKey) {
-    res.status(500).json({ error: "Missing OPENAI_API_KEY" });
-    return;
-  }
-
-  // 3) APIキーに非ASCII文字が混ざっていないかチェック
-  const badPositions = [];
-  for (let i = 0; i < apiKey.length; i++) {
-    const code = apiKey.charCodeAt(i);
-    if (code > 127) {
-      badPositions.push({ index: i, code });
-    }
-  }
-  if (badPositions.length > 0) {
-    // ここで一度止める：ByteString エラーの元凶を可視化
-    res.status(500).json({
-      error: "OPENAI_API_KEY has non-ASCII characters",
-      badPositions,
-      length: apiKey.length,
-    });
-    return;
-  }
-
-  // 4) リクエストボディ検証
-  const body = req.body || {};
-  const messages = body.messages;
-  if (!Array.isArray(messages)) {
-    res
-      .status(400)
-      .json({ error: "Invalid body", detail: "messages must be an array" });
-    return;
-  }
-
   try {
-    // 5) OpenAI を fetch で直叩き
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    const rawKey = process.env.OPENAI_API_KEY;
+    if (!rawKey) {
+      return res.status(500).json({ error: "Missing OPENAI_API_KEY" });
+    }
+
+    // まず前後の空白・改行を除去
+    const apiKey = rawKey.trim();
+
+    // ここで「キー文字列自体」に変な文字が混ざってないか検査する
+    const badPositions = [];
+    for (let i = 0; i < apiKey.length; i++) {
+      const code = apiKey.charCodeAt(i);
+      // 0x20〜0x7E 以外（制御文字 or 非ASCII）は全部アウトにする
+      if (code < 0x20 || code > 0x7e) {
+        badPositions.push({ index: i, code });
+      }
+    }
+    if (badPositions.length > 0) {
+      return res.status(500).json({
+        error: "OPENAI_API_KEY has invalid characters",
+        badPositions,
+        length: apiKey.length,
+      });
+    }
+
+    // ここまで通ったら Authorization ヘッダとしては安全
+    const { messages } = req.body || {};
+
     const openaiRes = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -54,30 +43,30 @@ export default async function handler(req, res) {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4.1-mini", // 必要ならここは別モデルに変更
+          model: "gpt-4.1-mini",
           messages,
         }),
       }
     );
 
-    const data = await openaiRes.json();
-
     if (!openaiRes.ok) {
-      // OpenAI 側のエラーをそのままラップして返す
-      res.status(500).json({
+      const text = await openaiRes.text();
+      return res.status(500).json({
         error: "OpenAI API error",
         status: openaiRes.status,
-        detail: data,
+        body: text,
       });
-      return;
     }
 
-    const content = data.choices?.[0]?.message?.content ?? "";
-    res.status(200).json({ content });
+    const data = await openaiRes.json();
+    const content =
+      data.choices?.[0]?.message?.content ??
+      "すまぬ、仙人の声がうまく届かなかったようじゃ。";
+
+    return res.status(200).json({ content });
   } catch (err) {
-    // 予期せぬサーバエラー
-    res.status(500).json({
-      error: "Server error while calling OpenAI",
+    return res.status(500).json({
+      error: "Unexpected server error",
       detail: String(err),
     });
   }
