@@ -804,9 +804,7 @@ function showAsk(){
   }
 }
 
-/* ===========================
-   7) OpenAI 呼び出し（/api/chat 経由）
-   =========================== */
+// 7) OpenAI 呼び出し（/api/chat 経由）
 async function callOpenAI(messages){
   const res = await fetch("/api/chat", {
     method: "POST",
@@ -814,15 +812,19 @@ async function callOpenAI(messages){
     body: JSON.stringify({ messages }),
   });
 
-  if (res.status === 429) {
-    throw new Error("BUSY");
-  }
+  // ★ここで生のレスポンスを全部読む
+  const text = await res.text();
+  console.log("=== /api/chat raw response ===");
+  console.log("status:", res.status);
+  console.log("body:", text);
+
   if (!res.ok) {
+    // 500 などの場合はここで止める（画面上は今まで通り API_ERROR）
     throw new Error("API_ERROR");
   }
 
-  const data = await res.json();
-  // /api/chat.js 側で { content: "仙人の返答" } を返している想定
+  // 正常時は JSON としてパース
+  const data = JSON.parse(text);
   return data.content || "";
 }
 
@@ -1257,3 +1259,4 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
+
