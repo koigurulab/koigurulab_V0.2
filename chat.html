@@ -911,6 +911,8 @@ const COMMON_SYS_TEMPLATE = String.raw`
 
 このチャットでは、どのターンでも、流れや順番は自由でよいが、
 最終的に次の4つがすべて入っている状態にすること。
+ただし、meta.final_turn が true のターンでは 4) を行わず、
+締めくくり専用のターンとして扱うこと。
 
 1) やわらかい共感と「ほめ」
 2) 性格当てを絡めた、気持ちの言語化ブロック
@@ -986,6 +988,9 @@ const COMMON_SYS_TEMPLATE = String.raw`
 ────────────────────
 4) 心の声セリフ & 最後の問い（毎ターン必須）
 ────────────────────
+
+※ meta.final_turn が true のターンでは、この 4) 全体を行わない。
+  以下のルールは final_turn が false のときだけ適用する。
 
 ▼心の声セリフ（本文中で1回）
 ・本文のどこかで一度、ユーザの心の独り言を1〜2行、カギ括弧付きで書くこと。
@@ -1094,6 +1099,17 @@ const SYS_PHASE_D = String.raw`
   「今の本音としてどう進みたいと思っているか」を
   {{me}} 一人称の内心セリフ（番号付きの選択肢）で聞く。
 ・選択肢はすべて「ペース／距離感」に関する内容にする。
+
+◆ meta.final_turn が true のターン（=締め専用ターン）の特別ルール
+・このターンはクロージング専用とする。
+・COMMON_SYS の 4) は適用せず、質問で終わらない。
+・これまでの F / P / D の内容を短く振り返りつつ、
+  お主の頑張りをねぎらい、
+  今後選べる方向性の例をいくつか「説明」として示す。
+・最後の1〜3文は、
+  「今日はここまでにしておこう」「また話したくなったら来い」
+  などの締めの言葉だけにする。
+・番号付きの内心セリフや「どれが近いか」などの問いを出してはならない。
 `;
 
 /* ===========================
@@ -1160,6 +1176,7 @@ function buildUserMeta(profile, phase, userText, opt){
   const meta = {
     phase,
     first_turn: !!(opt && opt.firstTurn),
+    final_turn: !!(opt && opt.finalTurn),   // ★ここを追加
     question_theme: dialogState.questionTheme,
     self_mbti: profile.selfMBTI || "",
     self_love: profile.selfLove || "",
@@ -1270,11 +1287,6 @@ async function sendFree(){
     return;
   }
 
-  // すでに会話終了済みなら何もしない
-  if (isFinished) {
-    return;
-  }
-
   // 通常チャットフェーズ
   addUser(text);
   freeInput.value = "";
@@ -1283,12 +1295,17 @@ async function sendFree(){
 
   const nextTurn = getAssistantTurn(); // 今から出す assistant が何ターン目か
   const phase    = getPhaseFromTurn(nextTurn);
+  const isFinal  = (nextTurn === 9);   // ★ 9ターン目を締め専用にする
+
   dialogState.questionTheme = getQuestionTheme(phase);
   updateDialogSummary(text);
 
   const commonSys = buildCommonSystem(profile);
   const phaseSys  = buildPhaseSystem(phase, profile);
-  const metaUser  = buildUserMeta(profile, phase, text, { firstTurn:false });
+  const metaUser  = buildUserMeta(profile, phase, text, {
+    firstTurn: false,
+    finalTurn: isFinal        // ★ meta に final_turn を渡す
+  });
 
   const msgs = [
     { role:"system", content: commonSys },
@@ -1302,17 +1319,22 @@ async function sendFree(){
     addAssistant(reply);
     history.push({role:"user",content:metaUser});
     history.push({role:"assistant",content:reply});
+
+    // ★ 9ターン目の返信後はチャットを終了・UIロック
+    if (isFinal) {
+      sendBtn.disabled   = true;
+      freeInput.disabled = true;
+      choicesWrap.innerHTML = "";
+      freeInput.placeholder =
+        "今日はここまでじゃ。また気持ちが揺れたら、あらためて相談しに来ておくれ。";
+    }
+
   }catch(e){
     console.warn("chat error:", e);
     addAssistant("今は他の人の相談に乗っておってな、少し時間をおいてからもう一度頼むのじゃ。");
   }finally{
     statusEl.textContent = "";
     setBusy(false);
-
-    // 9ターン目の返答を出し終わったら終了処理
-    if (nextTurn >= MAX_TURNS) {
-      finishConversationOnce();
-    }
   }
 }
 
@@ -1331,3 +1353,4 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
+
