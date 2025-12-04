@@ -101,15 +101,16 @@
       background: var(--accent-dark);
     }
 
-    /* チャットレイアウト全体 */
-    .chat-layout {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 32px 16px 40px;
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-      gap: 28px;
-    }
+  .chat-layout {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 16px 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 28px;
+  /* 追加：ヘッダーを引いた分だけ縦を確保 */
+  min-height: calc(100vh - 80px);
+}
     @media (max-width: 800px) {
       .chat-layout {
         grid-template-columns: minmax(0, 1fr);
@@ -136,17 +137,26 @@
     }
 
     /* チャットカード（右側コンテナ） */
-    .chat-card {
-      background: var(--card);
-      border-radius: 20px;
-      padding: 14px 12px;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-      border: 1px solid rgba(248, 113, 113, 0.25);
-      display: flex;
-      flex-direction: column;
-      height: 520px;
-      max-height: 80vh;
-    }
+  .chat-card {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 14px 12px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  display: flex;
+  flex-direction: column;
+
+  /* ここから変更点 ↓ */
+  height: calc(100vh - 160px); /* 画面高ベースでかなり大きく */
+  max-height: none;
+}
+
+/* スマホ時は少しだけ低めに調整 */
+@media (max-width: 800px) {
+  .chat-card {
+    height: calc(100vh - 200px);
+  }
+}
 
     /* ここから下は「仙人チャット頭脳」用のスタイル追加分 */
 
@@ -159,15 +169,19 @@
       margin-top: 6px;
     }
 
-    .chat-box {
-      height: 100%;
-      overflow-y: auto;
-      border-radius: 14px;
-      background: #fef2f2;
-      padding: 8px;
-      border: 1px solid #ffe4e6;
-      margin-top: 6px;
-    }
+   .chat-box {
+  height: 100%;
+  overflow-y: auto;
+  border-radius: 14px;
+  background: #fef2f2;
+  padding: 8px;
+  border: 1px solid #ffe4e6;
+  margin-top: 6px;
+
+  /* 追加：flex で縦に伸ばす */
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
     .row {
       display: flex;
@@ -610,8 +624,16 @@ MBTI: ${d.code}
           `.trim()
         }
       ];
-      const reply = await withRetry(()=>callOpenAI(msgs));
-      addAssistant(reply.trim());
+      
+      // ★ここを追加
+      statusEl.textContent = "仙人が考え中じゃ…";
+
+      try {
+        const reply = await withRetry(()=>callOpenAI(msgs));
+        addAssistant(reply.trim());
+      } finally {
+        statusEl.textContent = "";
+      }
       return;
     }
 
@@ -657,9 +679,15 @@ MBTI: ${dMbti ? dMbti.code : "不明"}
 MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
           `.trim()
         }
-      ];
-      const reply = await withRetry(()=>callOpenAI(msgs));
-      addAssistant(reply.trim());
+      ];// ★ここを追加
+      statusEl.textContent = "仙人が考え中じゃ…";
+
+      try {
+        const reply = await withRetry(()=>callOpenAI(msgs));
+        addAssistant(reply.trim());
+      } finally {
+        statusEl.textContent = "";
+      }
       return;
     }
 
@@ -700,8 +728,15 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
           `.trim()
         }
       ];
-      const reply = await withRetry(()=>callOpenAI(msgs));
-      addAssistant(reply.trim());
+ // ★ここを追加
+      statusEl.textContent = "仙人が考え中じゃ…";
+
+      try {
+        const reply = await withRetry(()=>callOpenAI(msgs));
+        addAssistant(reply.trim());
+      } finally {
+        statusEl.textContent = "";
+      }
       return;
     }
 
@@ -747,8 +782,15 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
           `.trim()
         }
       ];
-      const reply = await withRetry(()=>callOpenAI(msgs));
-      addAssistant(reply.trim());
+  // ★ここを追加
+      statusEl.textContent = "仙人が考え中じゃ…";
+
+      try {
+        const reply = await withRetry(()=>callOpenAI(msgs));
+        addAssistant(reply.trim());
+      } finally {
+        statusEl.textContent = "";
+      }
       return;
     }
 
@@ -1259,4 +1301,5 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
+
 
