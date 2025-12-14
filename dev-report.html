@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>有料レポートDEVテスト</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          Arial, "Segoe UI", sans-serif;
+        background: #fff7f9;
+        color: #333;
+        margin: 0;
+        padding: 24px;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
+
+      .desc {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 16px;
+        line-height: 1.6;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+        gap: 16px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 420px;
+        resize: vertical;
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #f3c5d8;
+        box-sizing: border-box;
+        background: #fff;
+      }
+
+      .panel {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        box-sizing: border-box;
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 8px;
+        margin-bottom: 12px;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 8px 18px;
+        font-size: 13px;
+        cursor: pointer;
+        background: #ff6b9c;
+        color: #fff;
+        font-weight: 600;
+        box-shadow: 0 3px 8px rgba(255, 107, 156, 0.4);
+        transition: transform 0.05s ease-out, box-shadow 0.05s ease-out;
+      }
+
+      button:active {
+        transform: translateY(1px);
+        box-shadow: 0 1px 4px rgba(255, 107, 156, 0.4);
+      }
+
+      .status {
+        font-size: 12px;
+        color: #999;
+      }
+
+      pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin: 0;
+        font-family: inherit;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+
+      .sample {
+        font-size: 11px;
+        color: #999;
+        margin-top: 4px;
+      }
+
+      @media (max-width: 768px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>有料レポート生成 DEV</h1>
+    <p class="desc">
+      ここは開発者専用ページです。仙人チャットの内容を人間が要約した
+      <code>JSON</code> を左に貼り付けて、「レポート生成」を押すと、
+      <code>/api/dev-paid-report</code>
+      を叩いて本番想定のレポート本文を右側にストリーム表示します。
+    </p>
+
+    <div class="layout">
+      <!-- 入力側 -->
+      <div class="panel">
+        <div class="controls">
+          <button id="btn-fill-sample" type="button">サンプルJSONを入れる</button>
+        </div>
+        <textarea
+          id="jsonInput"
+          placeholder='{
+  "userProfile": {
+    "name": "げんき",
+    "age": "20代前半",
+    "gender": "男"
+  },
+  "currentTheme": "3回目デートの日程が決まらず脈ありか不安",
+  "currentStatus": {
+    "relationship": "マッチングアプリで出会い、2回デート済み",
+    "details": "3回目の候補日をこちらから3つ出したが相手の予定が合わず、
+もし都合がついたら連絡する、と言われている。"
+  },
+  "painPoints": [
+    "相手の温度感が読めない",
+    "断られるのが怖くて自分から強く行けない"
+  ],
+  "optionsUserIsConsidering": [
+    "連絡を待つ",
+    "一旦こちらから日程を絞って再提案する",
+    "区切りをつけて他の人に切り替える"
+  ],
+  "userWants": [
+    "できれば付き合いたいが、傷つきたくはない"
+  ]
+}'
+        ></textarea>
+        <p class="sample">
+          ※ JSON としてパースできない場合はフロント側でエラーにします。<br />
+          &nbsp;&nbsp;キー構造はプロンプトで説明しているので、多少違っていても問題ありません。
+        </p>
+      </div>
+
+      <!-- 出力側 -->
+      <div class="panel">
+        <div class="controls">
+          <button id="btn-generate" type="button">レポート生成</button>
+          <span id="status" class="status">待機中</span>
+        </div>
+        <pre id="output"></pre>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const inputEl = document.getElementById("jsonInput");
+        const outputEl = document.getElementById("output");
+        const statusEl = document.getElementById("status");
+        const btnGenerate = document.getElementById("btn-generate");
+        const btnSample = document.getElementById("btn-fill-sample");
+
+        btnSample.addEventListener("click", () => {
+          // placeholder をそのままコピー
+          const placeholder = inputEl.getAttribute("placeholder") || "";
+          inputEl.value = placeholder.trim();
+        });
+
+        btnGenerate.addEventListener("click", async () => {
+          const raw = inputEl.value.trim();
+          if (!raw) {
+            alert("まず左側に JSON を貼り付けてください。");
+            return;
+          }
+
+          let parsed;
+          try {
+            parsed = JSON.parse(raw);
+          } catch (e) {
+            console.error(e);
+            alert("JSON として読み込めません: " + e.message);
+            return;
+          }
+
+          outputEl.textContent = "";
+          statusEl.textContent = "生成中…";
+
+          try {
+            const resp = await fetch("/api/dev-paid-report", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(parsed),
+            });
+
+            if (!resp.ok || !resp.body) {
+              statusEl.textContent = "エラー (" + resp.status + ")";
+              return;
+            }
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunk = decoder.decode(value, { stream: true });
+              outputEl.textContent += chunk;
+            }
+
+            statusEl.textContent = "完了";
+          } catch (err) {
+            console.error(err);
+            statusEl.textContent = "ネットワークエラー";
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
