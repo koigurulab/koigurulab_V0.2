@@ -366,16 +366,18 @@ const sendBtn    = document.getElementById("send");
 const statusEl   = document.getElementById("status");
 const stepHint   = document.getElementById("step-hint");
 
-function addAssistant(text){
+function addAssistantStreamBubble(initialText=""){
   const row=document.createElement("div");
   row.className="row assistant";
   const b=document.createElement("div");
   b.className="bubble";
-  b.textContent=text;
+  b.textContent=initialText;
   row.appendChild(b);
   chat.appendChild(row);
   chat.scrollTop=chat.scrollHeight;
+  return b; // このbubbleに追記していく
 }
+
 function addUser(text){
   const row=document.createElement("div");
   row.className="row user";
@@ -1299,7 +1301,12 @@ async function sendFree(){
 
   const commonSys = buildCommonSystem(profile);
   const phaseSys  = buildPhaseSystem(phase, profile);
-  const metaUser  = buildUserMeta(profile, phase, text, { firstTurn:false });
+const isFinalTurn = (nextTurn === MAX_TURNS);
+
+const metaUser  = buildUserMeta(profile, phase, text, {
+  firstTurn: false,
+  finalTurn: isFinalTurn
+});
 
   const msgs = [
     { role:"system", content: commonSys },
@@ -1316,7 +1323,7 @@ async function sendFree(){
 
     // ★ここがポイント：9ターン目が終わったら取説生成
     if (nextTurn === MAX_TURNS && !reportGenerated) {
-      await generateReport();
+      await generateReportFlow();
     }
 
   }catch(e){
@@ -1334,59 +1341,61 @@ async function sendFree(){
   statusEl.textContent = "仙人がレポートの下書きをまとめておるぞ…";
 
   try {
-    // 1) 会話サマリーJSONを生成
-    const summaryResp = await fetch("/api/dev-paid-summary", {
+    // 1) summaryJson（設計図）
+    const summaryResp = await fetch("/api/paid-summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        profile,
-        history, // すでに持っている配列
-      }),
+      body: JSON.stringify({ profile, history }),
     });
 
     if (!summaryResp.ok) {
-      addAssistant("サマリー生成でエラーが出てしまったようじゃ…。");
+      reportGenerated = false; // リトライできるよう戻す
+      addAssistant("サマリー生成でエラーが出てしまったようじゃ…。もう一度試してくれんか。");
       return;
     }
 
     const summaryJson = await summaryResp.json();
+    localStorage.setItem("koi_summaryJson", JSON.stringify(summaryJson)); // 保険
 
-    // 2) 有料レポート本文をストリーム生成
-    const reportResp = await fetch("/api/dev-paid-report", {
+    // 2) 本文ストリーム
+    const reportResp = await fetch("/api/paid-report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(summaryJson),
     });
 
     if (!reportResp.ok || !reportResp.body) {
-      addAssistant("レポート生成でエラーが出てしまったようじゃ…。");
+      reportGenerated = false;
+      addAssistant("レポート生成でエラーが出てしまったようじゃ…。本文だけ再生成できるようにしておくのう。");
       return;
     }
 
-    addAssistant("── ここからは『恋愛取扱説明書（テスト版）』じゃ。\n");
+    statusEl.textContent = "仙人が本文を執筆中じゃ…";
+
+    const bubble = addAssistantStreamBubble("── ここからは『恋愛取扱説明書』じゃ。\n\n");
 
     const reader = reportResp.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    let firstChunk = true;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
-      // 最初のassistantバブルに追記していく実装でもOK
-      if (firstChunk) {
-        firstChunk = false;
-      }
-      // シンプルに append するなら：
-      addAssistant(chunk); // 必要ならまとめて1バブルにするよう実装調整
+      bubble.textContent += chunk;
+      chat.scrollTop = chat.scrollHeight;
     }
 
   } catch (e) {
     console.error(e);
+    reportGenerated = false;
     addAssistant("今はレポート生成がうまく動かなんだ…時間をおいて試してくれんか。");
   } finally {
     statusEl.textContent = "";
-    finishConversationOnce();
+    // ここは「追撃メッセージ」ではなく、UIロックだけにするのが自然
+    sendBtn.disabled = true;
+    freeInput.disabled = true;
+    freeInput.placeholder = "レポートを作成したぞ。必要ならスクショして保存しておくのじゃ。";
+    stepHint.textContent = "";
   }
 }
 /* ===========================
@@ -1404,5 +1413,6 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
+
 
 
