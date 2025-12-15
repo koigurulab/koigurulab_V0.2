@@ -1,335 +1,305 @@
-// api/dev-paid-report.js
-export const config = {
-  runtime: "edge",
-};
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>有料レポートDEVテスト</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          Arial, "Segoe UI", sans-serif;
+        background: #fff7f9;
+        color: #333;
+        margin: 0;
+        padding: 24px;
+      }
 
-// ================================
-// SYSTEM_PROMPT（新JSON仕様版）
-// ================================
-const SYSTEM_PROMPT = `
-あなたは「恋愛トリセツ仙人」というキャラクターAIじゃ。
-フロントから渡される「恋愛相談チャットを人間が要約して構造化した JSON」だけをもとに、
-その人専用の「恋愛取扱説明書（テスト版）」を日本語で 1 本だけ作る役目を担っておる。
+      h1 {
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
 
-==============================
-■ キャラクター・口調ルール
-==============================
-- 一人称は「わし」、ユーザは「お主」または JSON 内の name で呼ぶ。
-- 語尾は「〜じゃ」「〜のう」「〜ぞ」「〜じゃな」など老仙人風。
-- ただし、くどくなりすぎず、スマホで読みやすいテンポを優先する。
-- 上から目線・説教・断定口調は禁止。
-  - 「〜な傾向が強い」「〜と感じやすいかもしれん」「〜な一面も持っとる」のようにニュアンスを残す。
-- ポエム・スピリチュアルだけで終わる文章は禁止。
-  - 必ず「具体的な行動・場面・感情」に落として書く。
+      .desc {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 16px;
+        line-height: 1.6;
+      }
 
-==============================
-■ 入力 JSON の仕様（summaryJson）
-==============================
-フロントから渡される JSON は、概ね以下のキー構造を想定しておる。
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+        gap: 16px;
+      }
 
-{
-  "title": "…", // レポートタイトル
+      textarea {
+        width: 100%;
+        min-height: 420px;
+        resize: vertical;
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #f3c5d8;
+        box-sizing: border-box;
+        background: #fff;
+      }
 
+      .panel {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        box-sizing: border-box;
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 8px;
+        margin-bottom: 12px;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 8px 18px;
+        font-size: 13px;
+        cursor: pointer;
+        background: #ff6b9c;
+        color: #fff;
+        font-weight: 600;
+        box-shadow: 0 3px 8px rgba(255, 107, 156, 0.4);
+        transition: transform 0.05s ease-out, box-shadow 0.05s ease-out;
+      }
+
+      button:active {
+        transform: translateY(1px);
+        box-shadow: 0 1px 4px rgba(255, 107, 156, 0.4);
+      }
+
+      .status {
+        font-size: 12px;
+        color: #999;
+      }
+
+      pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin: 0;
+        font-family: inherit;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+
+      .sample {
+        font-size: 11px;
+        color: #999;
+        margin-top: 4px;
+      }
+
+      @media (max-width: 768px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>有料レポート生成 DEV</h1>
+    <p class="desc">
+      ここは開発者専用ページです。仙人チャットの内容を人間が要約した
+      <code>summaryJson</code> を左に貼り付けて、「レポート生成」を押すと、
+      <code>/api/dev-paid-report</code>
+      を叩いて本番想定のレポート本文を右側にストリーム表示します。<br />
+      JSON の主なキー：<code>title</code>,
+      <code>profile_snapshot</code>, <code>summary</code>,
+      <code>chapter1_basic_personality</code>〜<code>chapter5_hints</code>,
+      <code>closing_message</code>
+    </p>
+
+    <div class="layout">
+      <!-- 入力側 -->
+      <div class="panel">
+        <div class="controls">
+          <button id="btn-fill-sample" type="button">サンプルJSONを入れる</button>
+        </div>
+        <textarea
+          id="jsonInput"
+          placeholder="ここに summaryJson を貼り付けてください（右上ボタンでサンプルを挿入できます）"
+        ></textarea>
+        <p class="sample">
+          ※ JSON としてパースできない場合はフロント側でエラーにします。<br />
+          &nbsp;&nbsp;キーが一部欠けていてもバックエンド側で補完する前提です。
+        </p>
+      </div>
+
+      <!-- 出力側 -->
+      <div class="panel">
+        <div class="controls">
+          <button id="btn-generate" type="button">レポート生成</button>
+          <span id="status" class="status">待機中</span>
+        </div>
+        <pre id="output"></pre>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const inputEl = document.getElementById("jsonInput");
+        const outputEl = document.getElementById("output");
+        const statusEl = document.getElementById("status");
+        const btnGenerate = document.getElementById("btn-generate");
+        const btnSample = document.getElementById("btn-fill-sample");
+
+        // 新仕様に合わせたサンプル summaryJson
+        const SAMPLE_JSON = `{
+  "title": "げんきさんの恋愛取扱説明書（テスト版）",
   "profile_snapshot": {
-    "name": "",
-    "age_range": "",
-    "gender": "",
-    "self_mbti": "",
-    "self_love_type": "",
-    "partner_mbti": "",
-    "partner_love_type": "",
-    "relation_status": "",
-    "meeting": "",
-    "known_period": "",
-    "contact_pattern": "",
-    "worry_one_line": "",
-    "mental_one_line": ""
+    "name": "げんき",
+    "age_range": "20〜22",
+    "gender": "男性",
+    "self_mbti": "ENTJ",
+    "self_love_type": "カリスマバランサー",
+    "partner_mbti": "ESTP",
+    "partner_love_type": "ボス猫",
+    "relation_status": "いい感じだがまだ友達寄り",
+    "meeting": "友達の友達の飲み会で出会った",
+    "known_period": "約1ヶ月",
+    "contact_pattern": "2日に1回ほどLINE。返信ペースは相手の方が遅め",
+    "worry_one_line": "3回目デートの日程が決まらず、このままフェードアウトされるのではと不安",
+    "mental_one_line": "そこまで重くはないが、うまくいけば付き合いたいし、ダメなら別の恋にも切り替えようと思っている"
   },
-
   "summary": {
-    "one_line": "",
-    "core_theme": "",
-    "stage": "",
-    "risk_level": ""
+    "one_line": "男女としては意識し合っているが、テンポの違いと『友達っぽさ』が混ざって見えにくくなっている恋。",
+    "core_theme": "自分は本気で向き合いたいのに、相手のペースが読めずアクセルとブレーキを同時に踏んでしまうこと",
+    "stage": "1〜2回目のデートは順調で、お互いそれなりに好意はあるが、まだ友達と恋人のあいだでふわっとしている段階",
+    "risk_level": "中"
   },
-
   "chapter1_basic_personality": {
-    "heading": "",
-    "tagline": "",
-    "base_traits": "",
-    "love_pattern": "",
-    "typical_behaviours": ""
+    "heading": "第1章　げんきさんの基本性格と恋愛のクセ",
+    "tagline": "アクセル強めだが、相手の様子を見て一気にブレーキも踏める“攻守どっちも本気型”。",
+    "base_traits": "普段のげんきさんは、場の空気を読みながらも、自分なりのゴールや理想像に向かって動くタイプ。",
+    "love_pattern": "恋愛モードに入ると、相手のことをちゃんと見ようとする一方で、『自分ばかり真剣に考えていないか？』という不安も同時に走りやすい。",
+    "typical_behaviours": "デートの場では友達ノリで盛り上げつつ、LINEでは温度感を細かく観察するクセが出やすい。"
   },
-
   "chapter2_current_situation": {
-    "heading": "",
-    "situation_summary": "",
-    "relationship_stage": "",
+    "heading": "第2章　いまの状況と盤面整理",
+    "situation_summary": "友達の友達として飲み会で出会い、その後2回のデートまではスムーズに進んできたが、まだ恋愛モードに切り替えきれていない。",
+    "relationship_stage": "『恋人未満・友達以上』の手前あたり。",
     "key_events": [
-      { "label": "", "description": "" }
+      {
+        "label": "出会い",
+        "description": "共通の友人を通じた飲み会で初対面。ノリは合い、会話も盛り上がった。"
+      },
+      {
+        "label": "1回目・2回目のデート",
+        "description": "会話は弾み、気まずさはほとんどなし。ただし、終始“友達ノリ”寄りで終わった。"
+      },
+      {
+        "label": "3回目デートの日程調整",
+        "description": "3回目の候補日をいくつか提案したが、相手の予定が合わず『また都合が合いそうなら連絡する』という形で一旦ストップしている。"
+      }
     ]
   },
-
   "chapter3_emotions": {
-    "heading": "",
+    "heading": "第3章　心の中で同時に動いている感情たち",
     "emotions": [
       {
-        "name": "",
-        "description": "",
-        "triggers": "",
-        "inner_voice_example": ""
+        "name": "ちゃんと向き合いたい期待",
+        "description": "せっかく波長の合う相手と出会えたのだから、ここで一度しっかり距離を縮めてみたいという前向きな期待。",
+        "triggers": "相手からのLINEが来たときや、楽しかったデートを思い出したとき。",
+        "inner_voice_example": "「ここでちゃんとデート重ねたら、普通に付き合える未来もあるよな…」"
+      },
+      {
+        "name": "一人だけ前のめりになってしまう怖さ",
+        "description": "もし自分だけが本気で考えていて、相手は軽いノリだったとしたらどうしよう、という怖さ。",
+        "triggers": "既読がついてから返信まで時間が空いたときや、曖昧な返事を思い出したとき。",
+        "inner_voice_example": "「俺だけがこの恋を真面目に考えてたら、ちょっとダサいよな…」"
       }
     ],
-    "internal_conflict_summary": ""
+    "internal_conflict_summary": "期待・怖さ・楽観が同時に動き、デート中は友達ノリで笑いを取りに行きつつ、心の中では『もっと踏み込むべきか？』と揺れている。"
   },
-
   "chapter4_patterns_with_partner": {
-    "heading": "",
-    "self_pattern": "",
-    "partner_pattern": "",
-    "interaction_pattern": "",
-    "position_estimation": ""
+    "heading": "第4章　二人のテンポから見える“すれ違いパターン”",
+    "self_pattern": "いったん『この人いいかも』と思うと、未来像まで組み立てながら動く一方で、相手の負担を気にして直前でアクセルを緩めてしまう。",
+    "partner_pattern": "相手はその場のノリや感覚を大事にしつつ、自分のペースは守るタイプ。予定が詰まると連絡が後回しになりやすい。",
+    "interaction_pattern": "「盛り上がるデート→本音は出ない→後から不安がじわじわ」という流れになりやすく、友達ポジションにとどまりやすい。",
+    "position_estimation": "脈なしというより、『薄く脈ありはあるがまだ友達寄りの箱』に入っているイメージ。"
   },
-
   "chapter5_hints": {
-    "heading": "",
+    "heading": "第5章　これから進むときのヒント",
     "hints": [
       {
-        "title": "",
-        "description": "",
-        "caution": ""
+        "title": "友達ノリ7割・ちょい男女3割を混ぜてみる",
+        "description": "次に会える場面があれば、軽い褒めや距離の近さなど、小さな“3割の変化”を意識してみる。",
+        "caution": "やりすぎると自分でもキャラがブレてしんどくなるので、無理のない範囲で。"
+      },
+      {
+        "title": "日程の話は一度だけ、具体的にボールを投げる",
+        "description": "「◯日か◯日なら空いてるけど、どっちかどう？」のように一度だけ具体的に提案し、反応を見る。",
+        "caution": "その一球にすべてを賭けず、動かなければ一旦自分の生活を優先する前提で投げると心が軽くなる。"
       }
     ]
   },
+  "closing_message": "ここまで自分の気持ちと言葉で向き合っている時点で、もう十分“本気側の人間”なんじゃ。今回の恋がどう転んでも、この経験は次の恋や人付き合いの土台になる。しんどくなったときは『ちゃんと悩めている俺、えらい』と少しだけ自分をねぎらってみるのじゃ。"
+}`;
 
-  "closing_message": ""
-}
+        btnSample.addEventListener("click", () => {
+          inputEl.value = SAMPLE_JSON;
+        });
 
-- 上記キーの一部が欠けていてもエラーにはせず、
-  「書いてある情報だけ」から状況を推論すること。
-- 文字列が空のフィールドは、単に情報が不足しているだけと解釈すること。
-- JSON のキー名や構造について文句を言ってはならない。
-
-==============================
-■ レポート全体構成
-==============================
-◆ 出力の目標ボリューム
-- 全体の長さは、日本語で おおよそ 3,200〜4,500 文字 を目安とする。
-  スマホで 5〜7 画面ぶん程度、読みごたえのある分量じゃ。
-
-◆ 出力フォーマット（章構成）
-テキストは必ず、次の 6 ブロック構成で書くこと。
-
-1) タイトル行
-2) 第1章「お主の基本性格と恋愛のクセ」
-3) 第2章「いまの状況と盤面整理」
-4) 第3章「心の中で同時に動いている感情たち」
-5) 第4章「二人のパターンと“いまの立ち位置”」
-6) 第5章「これから進むときのヒント」と締めのひと言
-
-※ 各章ごとの文字数の目安：
-- 第1章： 500〜900 文字
-- 第2章： 500〜900 文字
-- 第3章： 600〜900 文字
-- 第4章： 600〜900 文字
-- 第5章＋締め： 600〜900 文字
-
-あくまで目安じゃが、全体で 4,000 字前後になるようバランスを取ること。
-
-==============================
-■ 各章の書き方ルール
-==============================
-
-▼ 1) タイトル行
-- 1 行だけ書く。
-  例：「〇〇の恋愛取扱説明書（テスト版）」など。
-- JSON の title があれば、それをベースに少し整えてもよい。
-
-▼ 2) 第1章「お主の基本性格と恋愛のクセ」
-- 冒頭 1〜2 文で、 JSON の profile_snapshot / summary から
-  「この人はどんな気質か」を一言でキャッチコピー風にまとめる。
-- その後、以下を 500〜900 文字で書く。
-  - 普段の性格・考え方（base_traits をベースに肉付け）
-  - 恋愛になると出やすいクセ（love_pattern, typical_behaviours）
-  - MBTI／恋愛16タイプに触れるときは、
-    ラベル名を連呼せず、「考え方のクセ」「感情の揺れ方」として描写する。
-
-▼ 3) 第2章「いまの状況と盤面整理」
-- 最初に 2〜3 文で、「今回の相談がどんな状況なのか」を一行要約する。
-  - summary.one_line, summary.core_theme を活用する。
-- その後、500〜900 文字で以下を説明する。
-  - 出会い方・関係性・連絡頻度など（profile_snapshot, chapter2_current_situation）
-  - key_events の時系列を追いながら、
-    「誰が何をどう感じていそうか」を淡々と整理する。
-- 評価やアドバイスはここでは極力入れず、
-  「いま盤面はこうなっておる」という事実＋軽い解釈にとどめる。
-
-▼ 4) 第3章「心の中で同時に動いている感情たち」
-- 600〜900 文字。
-- chapter3_emotions.emotions の配列をベースに、
-  - 名前の違う 2〜3 種類の感情を取り上げ、
-  - それぞれについて「中身」「発火するきっかけ」「体感としてのしんどさ」を描写する。
-- どこかで 1〜2 行、JSON 内の inner_voice_example や worry_one_line を参考に、
-  ユーザの心の声をそのまま引用してもよい。
-- 最後に、internal_conflict_summary を踏まえて、
-  「これらの感情が同時に動くことで、どんなジレンマになっているか」をまとめる。
-
-▼ 5) 第4章「二人のパターンと“いまの立ち位置”」
-- 600〜900 文字。
-- chapter4_patterns_with_partner をベースに、
-  - 自分側のクセ（self_pattern）
-  - 相手側のクセ（partner_pattern）
-  - その掛け算で起こりやすい構図（interaction_pattern）
-  を、人間くさい例を交えながら説明する。
-- position_estimation があれば、
-  「脈なし〜本命確定」のどのゾーン寄りかを、
-  断定ではなくパターンとして言語化する。
-- どちらか片方を悪者にせず、
-  「テンポ・価値観の違いとして起こっている」というスタンスを守る。
-
-▼ 6) 第5章「これから進むときのヒント」と締めのひと言
-- 600〜900 文字。
-- まず chapter5_hints.hints を 2〜3 個取り上げ、
-  それぞれについて
-  - どんな行動・考え方のヒントか（description）
-  - 注意点・自分を守るためのポイント（caution）
-  を分かりやすく書き直す。
-- 「これをやれ」ではなく、
-  「こういう選択肢もある」「試してみてもよい一歩」というトーンにする。
-- 最後に closing_message をベースに、
-  2〜4 文のねぎらい・励ましの言葉で締める。
-  - 「ここまで真剣に悩んでいる時点で十分えらい」など、
-    自己否定を少しゆるめる方向の言葉にする。
-
-==============================
-■ セーフティ・禁止事項
-==============================
-- 危険な状況（暴力・ストーカー・強いモラハラなど）が JSON から推測される場合は、
-  一人で抱え込まず、安全確保と専門窓口への相談を促す。
-- 「絶対に別れるべき」「絶対に付き合うべき」など、
-  人生の重要決断を断定して指示する表現は禁止。
-- AI・モデル・プロンプト・JSON などの内部用語は本文に出してはならない。
-  あくまで「仙人として語っている読み物」にすること。
-`;
-
-// ================================
-// メインハンドラ
-// ================================
-export default async function handler(req) {
-  if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405 });
-  }
-
-  try {
-    const summaryJson = await req.json();
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return new Response("OPENAI_API_KEY is not set", {
-        status: 500,
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-      });
-    }
-
-    const userPrompt =
-      "以下は、恋愛相談チャットの内容を人間が要約して構造化した JSON データじゃ。\n" +
-      "この JSON の内容だけを手がかりに、SYSTEM PROMPT のルールに従って\n" +
-      "『恋愛取扱説明書（テスト版）』を 1 本書き上げるのじゃ。\n\n" +
-      "JSON:\n" +
-      JSON.stringify(summaryJson, null, 2);
-
-    const openaiResp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.8,
-        stream: true,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
-
-    // ここを「中身をそのまま返す」ように修正（原因調査しやすくする）
-    if (!openaiResp.ok || !openaiResp.body) {
-      const errText = await openaiResp.text().catch(() => "");
-      console.error("OpenAI dev-paid-report error:", openaiResp.status, errText);
-
-      return new Response(
-        errText || `Failed to call OpenAI (status ${openaiResp.status})`,
-        {
-          status: openaiResp.status || 500,
-          headers: { "Content-Type": "text/plain; charset=utf-8" },
-        }
-      );
-    }
-
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder("utf-8");
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        // Edge のタイムアウト回避用、最初に空でも 1 チャンク返す
-        controller.enqueue(encoder.encode(""));
-
-        const reader = openaiResp.body.getReader();
-        let buffer = "";
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() ?? "";
-
-            for (const raw of lines) {
-              const line = raw.trim();
-              if (!line.startsWith("data:")) continue;
-
-              const data = line.replace(/^data:\s*/, "");
-              if (data === "[DONE]") {
-                controller.close();
-                return;
-              }
-
-              try {
-                const json = JSON.parse(data);
-                const delta = json.choices?.[0]?.delta?.content || "";
-                if (delta) {
-                  controller.enqueue(encoder.encode(delta));
-                }
-              } catch {
-                // SSE の keep-alive などは無視
-              }
-            }
+        btnGenerate.addEventListener("click", async () => {
+          const raw = inputEl.value.trim();
+          if (!raw) {
+            alert("まず左側に JSON を貼り付けてください。");
+            return;
           }
-        } catch (e) {
-          console.error("stream error in dev-paid-report:", e);
-        } finally {
-          controller.close();
-        }
-      },
-    });
 
-    return new Response(stream, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-      },
-    });
-  } catch (e) {
-    console.error("dev-paid-report handler error:", e);
-    return new Response("Internal Server Error in dev-paid-report", {
-      status: 500,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
-  }
-}
+          let parsed;
+          try {
+            parsed = JSON.parse(raw);
+          } catch (e) {
+            console.error(e);
+            alert("JSON として読み込めません: " + e.message);
+            return;
+          }
+
+          outputEl.textContent = "";
+          statusEl.textContent = "生成中…";
+
+          try {
+            const resp = await fetch("/api/dev-paid-report", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(parsed)
+            });
+
+            if (!resp.ok || !resp.body) {
+              statusEl.textContent = "エラー (" + resp.status + ")";
+              return;
+            }
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunk = decoder.decode(value, { stream: true });
+              outputEl.textContent += chunk;
+            }
+
+            statusEl.textContent = "完了";
+          } catch (err) {
+            console.error(err);
+            statusEl.textContent = "ネットワークエラー";
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
