@@ -110,9 +110,13 @@
     <h1>有料レポート生成 DEV</h1>
     <p class="desc">
       ここは開発者専用ページです。仙人チャットの内容を人間が要約した
-      <code>JSON</code> を左に貼り付けて、「レポート生成」を押すと、
+      <code>summaryJson</code> を左に貼り付けて、「レポート生成」を押すと、
       <code>/api/dev-paid-report</code>
-      を叩いて本番想定のレポート本文を右側にストリーム表示します。
+      を叩いて本番想定のレポート本文を右側にストリーム表示します。<br />
+      JSON の主なキー：<code>title</code>,
+      <code>profile_snapshot</code>, <code>summary</code>,
+      <code>chapter1_basic_personality</code>〜<code>chapter5_hints</code>,
+      <code>closing_message</code>
     </p>
 
     <div class="layout">
@@ -123,35 +127,11 @@
         </div>
         <textarea
           id="jsonInput"
-          placeholder='{
-  "userProfile": {
-    "name": "げんき",
-    "age": "20代前半",
-    "gender": "男"
-  },
-  "currentTheme": "3回目デートの日程が決まらず脈ありか不安",
-  "currentStatus": {
-    "relationship": "マッチングアプリで出会い、2回デート済み",
-    "details": "3回目の候補日をこちらから3つ出したが相手の予定が合わず、
-もし都合がついたら連絡する、と言われている。"
-  },
-  "painPoints": [
-    "相手の温度感が読めない",
-    "断られるのが怖くて自分から強く行けない"
-  ],
-  "optionsUserIsConsidering": [
-    "連絡を待つ",
-    "一旦こちらから日程を絞って再提案する",
-    "区切りをつけて他の人に切り替える"
-  ],
-  "userWants": [
-    "できれば付き合いたいが、傷つきたくはない"
-  ]
-}'
+          placeholder="ここに summaryJson を貼り付けてください（右上ボタンでサンプルを挿入できます）"
         ></textarea>
         <p class="sample">
           ※ JSON としてパースできない場合はフロント側でエラーにします。<br />
-          &nbsp;&nbsp;キー構造はプロンプトで説明しているので、多少違っていても問題ありません。
+          &nbsp;&nbsp;キーが一部欠けていてもバックエンド側で補完する前提です。
         </p>
       </div>
 
@@ -173,10 +153,101 @@
         const btnGenerate = document.getElementById("btn-generate");
         const btnSample = document.getElementById("btn-fill-sample");
 
+        // 新仕様に合わせたサンプル summaryJson
+        const SAMPLE_JSON = `{
+  "title": "げんきさんの恋愛取扱説明書（テスト版）",
+  "profile_snapshot": {
+    "name": "げんき",
+    "age_range": "20〜22",
+    "gender": "男性",
+    "self_mbti": "ENTJ",
+    "self_love_type": "カリスマバランサー",
+    "partner_mbti": "ESTP",
+    "partner_love_type": "ボス猫",
+    "relation_status": "いい感じだがまだ友達寄り",
+    "meeting": "友達の友達の飲み会で出会った",
+    "known_period": "約1ヶ月",
+    "contact_pattern": "2日に1回ほどLINE。返信ペースは相手の方が遅め",
+    "worry_one_line": "3回目デートの日程が決まらず、このままフェードアウトされるのではと不安",
+    "mental_one_line": "そこまで重くはないが、うまくいけば付き合いたいし、ダメなら別の恋にも切り替えようと思っている"
+  },
+  "summary": {
+    "one_line": "男女としては意識し合っているが、テンポの違いと『友達っぽさ』が混ざって見えにくくなっている恋。",
+    "core_theme": "自分は本気で向き合いたいのに、相手のペースが読めずアクセルとブレーキを同時に踏んでしまうこと",
+    "stage": "1〜2回目のデートは順調で、お互いそれなりに好意はあるが、まだ友達と恋人のあいだでふわっとしている段階",
+    "risk_level": "中"
+  },
+  "chapter1_basic_personality": {
+    "heading": "第1章　げんきさんの基本性格と恋愛のクセ",
+    "tagline": "アクセル強めだが、相手の様子を見て一気にブレーキも踏める“攻守どっちも本気型”。",
+    "base_traits": "普段のげんきさんは、場の空気を読みながらも、自分なりのゴールや理想像に向かって動くタイプ。",
+    "love_pattern": "恋愛モードに入ると、相手のことをちゃんと見ようとする一方で、『自分ばかり真剣に考えていないか？』という不安も同時に走りやすい。",
+    "typical_behaviours": "デートの場では友達ノリで盛り上げつつ、LINEでは温度感を細かく観察するクセが出やすい。"
+  },
+  "chapter2_current_situation": {
+    "heading": "第2章　いまの状況と盤面整理",
+    "situation_summary": "友達の友達として飲み会で出会い、その後2回のデートまではスムーズに進んできたが、まだ恋愛モードに切り替えきれていない。",
+    "relationship_stage": "『恋人未満・友達以上』の手前あたり。",
+    "key_events": [
+      {
+        "label": "出会い",
+        "description": "共通の友人を通じた飲み会で初対面。ノリは合い、会話も盛り上がった。"
+      },
+      {
+        "label": "1回目・2回目のデート",
+        "description": "会話は弾み、気まずさはほとんどなし。ただし、終始“友達ノリ”寄りで終わった。"
+      },
+      {
+        "label": "3回目デートの日程調整",
+        "description": "3回目の候補日をいくつか提案したが、相手の予定が合わず『また都合が合いそうなら連絡する』という形で一旦ストップしている。"
+      }
+    ]
+  },
+  "chapter3_emotions": {
+    "heading": "第3章　心の中で同時に動いている感情たち",
+    "emotions": [
+      {
+        "name": "ちゃんと向き合いたい期待",
+        "description": "せっかく波長の合う相手と出会えたのだから、ここで一度しっかり距離を縮めてみたいという前向きな期待。",
+        "triggers": "相手からのLINEが来たときや、楽しかったデートを思い出したとき。",
+        "inner_voice_example": "「ここでちゃんとデート重ねたら、普通に付き合える未来もあるよな…」"
+      },
+      {
+        "name": "一人だけ前のめりになってしまう怖さ",
+        "description": "もし自分だけが本気で考えていて、相手は軽いノリだったとしたらどうしよう、という怖さ。",
+        "triggers": "既読がついてから返信まで時間が空いたときや、曖昧な返事を思い出したとき。",
+        "inner_voice_example": "「俺だけがこの恋を真面目に考えてたら、ちょっとダサいよな…」"
+      }
+    ],
+    "internal_conflict_summary": "期待・怖さ・楽観が同時に動き、デート中は友達ノリで笑いを取りに行きつつ、心の中では『もっと踏み込むべきか？』と揺れている。"
+  },
+  "chapter4_patterns_with_partner": {
+    "heading": "第4章　二人のテンポから見える“すれ違いパターン”",
+    "self_pattern": "いったん『この人いいかも』と思うと、未来像まで組み立てながら動く一方で、相手の負担を気にして直前でアクセルを緩めてしまう。",
+    "partner_pattern": "相手はその場のノリや感覚を大事にしつつ、自分のペースは守るタイプ。予定が詰まると連絡が後回しになりやすい。",
+    "interaction_pattern": "「盛り上がるデート→本音は出ない→後から不安がじわじわ」という流れになりやすく、友達ポジションにとどまりやすい。",
+    "position_estimation": "脈なしというより、『薄く脈ありはあるがまだ友達寄りの箱』に入っているイメージ。"
+  },
+  "chapter5_hints": {
+    "heading": "第5章　これから進むときのヒント",
+    "hints": [
+      {
+        "title": "友達ノリ7割・ちょい男女3割を混ぜてみる",
+        "description": "次に会える場面があれば、軽い褒めや距離の近さなど、小さな“3割の変化”を意識してみる。",
+        "caution": "やりすぎると自分でもキャラがブレてしんどくなるので、無理のない範囲で。"
+      },
+      {
+        "title": "日程の話は一度だけ、具体的にボールを投げる",
+        "description": "「◯日か◯日なら空いてるけど、どっちかどう？」のように一度だけ具体的に提案し、反応を見る。",
+        "caution": "その一球にすべてを賭けず、動かなければ一旦自分の生活を優先する前提で投げると心が軽くなる。"
+      }
+    ]
+  },
+  "closing_message": "ここまで自分の気持ちと言葉で向き合っている時点で、もう十分“本気側の人間”なんじゃ。今回の恋がどう転んでも、この経験は次の恋や人付き合いの土台になる。しんどくなったときは『ちゃんと悩めている俺、えらい』と少しだけ自分をねぎらってみるのじゃ。"
+}`;
+
         btnSample.addEventListener("click", () => {
-          // placeholder をそのままコピー
-          const placeholder = inputEl.getAttribute("placeholder") || "";
-          inputEl.value = placeholder.trim();
+          inputEl.value = SAMPLE_JSON;
         });
 
         btnGenerate.addEventListener("click", async () => {
@@ -202,9 +273,9 @@
             const resp = await fetch("/api/dev-paid-report", {
               method: "POST",
               headers: {
-                "Content-Type": "application/json",
+                "Content-Type": "application/json"
               },
-              body: JSON.stringify(parsed),
+              body: JSON.stringify(parsed)
             });
 
             if (!resp.ok || !resp.body) {
