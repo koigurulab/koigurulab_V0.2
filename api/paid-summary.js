@@ -1,10 +1,14 @@
 // /api/paid-summary.js
 export default async function handler(req, res) {
   try {
-    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
 
     const rawKey = process.env.OPENAI_API_KEY;
-    if (!rawKey) return res.status(500).json({ error: "Missing OPENAI_API_KEY" });
+    if (!rawKey) {
+      return res.status(500).json({ error: "Missing OPENAI_API_KEY" });
+    }
     const apiKey = rawKey.trim();
 
     const { profile, history } = req.body || {};
@@ -12,106 +16,189 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Invalid body. Expected { profile, history[] }" });
     }
 
-    // =========================
-    // evidence_pool をAPI側で作る（捏造抑止の要）
-    // =========================
-    const safeStr = (v) => (v == null ? "" : String(v)).trim();
+    const DEBUG_EVIDENCE_POOL =
+      String(process.env.DEBUG_EVIDENCE_POOL || "").toLowerCase() === "true";
 
-    function extractUserTextFromHistoryContent(content) {
-      const s = safeStr(content);
-      if (!s) return "";
+    function safeStr(v) {
+      return typeof v === "string" ? v.trim() : "";
+    }
+
+    function extractUserUtteranceFromHistoryContent(content) {
+      if (typeof content !== "string") return "";
       const marker = "【今回のユーザ発言】";
-      if (s.includes(marker)) {
-        const parts = s.split(marker);
-        return safeStr(parts.slice(1).join(marker));
+      if (content.includes(marker)) {
+        const after = content.split(marker)[1] || "";
+        return after.trim();
       }
-      // メタが無い形式のログもあり得るので、そのまま短く拾う
-      return s;
+      // メタ混入がない場合はそのまま
+      return content.trim();
     }
 
-    function pushIf(list, label, value) {
-      const v = safeStr(value);
-      if (!v) return;
-      list.push(`${label}: ${v}`);
+    function normalizeOneLine(text, maxLen = 220) {
+      const t = String(text || "")
+        .replace(/\r/g, "")
+        .replace(/\n+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!t) return "";
+      return t.length > maxLen ? t.slice(0, maxLen) : t;
     }
 
-    // 1) profile 由来の事実（安定して強い根拠）
-    const evidencePool = [];
-    pushIf(evidencePool, "名前", profile.name);
-    pushIf(evidencePool, "性別", profile.gender);
-    pushIf(evidencePool, "年齢レンジ", profile.ageRange);
-    pushIf(evidencePool, "状態（学生/社会人など）", profile.status);
-    pushIf(evidencePool, "関係性", profile.relation);
-    pushIf(evidencePool, "出会い方", profile.meeting);
-    pushIf(evidencePool, "知り合ってから", profile.known);
-    pushIf(evidencePool, "連絡頻度/どちらから多いか", profile.contact);
-    pushIf(evidencePool, "いちばん悩んでいるポイント", profile.worry);
-    pushIf(evidencePool, "今の心の状態", profile.mental);
-    pushIf(evidencePool, "相談スタイル", profile.style);
-
-    // タイプ情報（入力があれば事実として扱える）
-    pushIf(evidencePool, "自分のMBTI", profile.selfMBTI);
-    pushIf(evidencePool, "自分の恋愛16タイプ", profile.selfLove);
-    pushIf(evidencePool, "相手のMBTI", profile.targetMBTI);
-    pushIf(evidencePool, "相手の恋愛16タイプ", profile.targetLove);
-    pushIf(evidencePool, "恋愛対象の性別", profile.targetGender);
-
-    // 2) history 由来の事実（ユーザ発言のみを使う：assistant文は混ぜない）
-    //    ※「ユーザ発言: ...」として入れる（文言はそのまま、捏造防止）
-    const userUtterances = [];
-    for (const m of history) {
-      if (!m || m.role !== "user") continue;
-      const text = extractUserTextFromHistoryContent(m.content);
-      const t = safeStr(text).replace(/\s+/g, " ");
-      if (!t) continue;
-      // 長すぎるとLLMが雑に扱うので、適度にカット（事実の追加はしない）
-      userUtterances.push(`ユーザ発言: ${t.slice(0, 140)}`);
+    function uniq(arr) {
+      const seen = new Set();
+      const out = [];
+      for (const x of arr) {
+        const k = String(x || "").trim();
+        if (!k) continue;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(k);
+      }
+      return out;
     }
-    // 直近優先
-    userUtterances.slice(-12).forEach((x) => evidencePool.push(x));
 
-    // 3) 重複排除 & 上限（プロンプト安定化）
-    const deduped = [];
-    const seen = new Set();
-    for (const e of evidencePool) {
-      const k = safeStr(e);
-      if (!k) continue;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      deduped.push(k);
+    function buildEvidencePool(profileObj, historyArr) {
+      const p = profileObj || {};
+      const pool = [];
+
+      const name = safeStr(p.name);
+      const ageRange = safeStr(p.ageRange);
+      const status = safeStr(p.status);
+      const relation = safeStr(p.relation);
+      const meeting = safeStr(p.meeting);
+      const known = safeStr(p.known);
+      const contact = safeStr(p.contact);
+      const worry = safeStr(p.worry);
+      const mental = safeStr(p.mental);
+
+      const selfMBTI = safeStr(p.selfMBTI);
+      const selfLove = safeStr(p.selfLove);
+      const targetGender = safeStr(p.targetGender);
+      const targetMBTI = safeStr(p.targetMBTI);
+      const targetLove = safeStr(p.targetLove);
+
+      if (name) pool.push(`名前: ${name}`);
+      if (ageRange) pool.push(`年齢レンジ: ${ageRange}`);
+      if (status) pool.push(`状態: ${status}`);
+      if (relation) pool.push(`関係性: ${relation}`);
+      if (meeting) pool.push(`出会い方: ${meeting}`);
+      if (known) pool.push(`知り合って: ${known}`);
+      if (contact) pool.push(`連絡頻度: ${contact}`);
+      if (worry) pool.push(`悩み: ${worry}`);
+      if (mental) pool.push(`心の状態: ${mental}`);
+
+      if (selfMBTI) pool.push(`お主のMBTI: ${selfMBTI}`);
+      if (selfLove) pool.push(`お主の恋愛16タイプ: ${selfLove}`);
+      if (targetGender) pool.push(`相手の性別: ${targetGender}`);
+      if (targetMBTI) pool.push(`相手のMBTI: ${targetMBTI}`);
+      if (targetLove) pool.push(`相手の恋愛16タイプ: ${targetLove}`);
+
+      // history から user 発言を抽出（メタを除去しつつ）
+      const userUtterances = [];
+      for (const m of historyArr) {
+        if (!m || m.role !== "user") continue;
+        const raw = extractUserUtteranceFromHistoryContent(m.content);
+        const one = normalizeOneLine(raw, 240);
+        if (one) userUtterances.push(`会話ログ: ${one}`);
+      }
+
+      // 長すぎるとプロンプトが重くなるので上限
+      const merged = uniq([...pool, ...userUtterances]);
+
+      // 先頭から多め＋末尾から少し（最新っぽさ）を残す
+      const head = merged.slice(0, 22);
+      const tail = merged.slice(Math.max(merged.length - 10, 0));
+      return uniq([...head, ...tail]).slice(0, 30);
     }
-    const finalEvidencePool = deduped.slice(0, 30);
 
-    // =========================
-    // summaryJson スキーマ（fortune_traits追加、厳密）
-    // =========================
-    const TRAIT_KEYS = [
-      "sign_sensitivity",
-      "temperature_gap_sensitivity",
-      "self_blame_tendency",
-      "uncertainty_stress",
-      "future_visibility_need",
-    ];
+    function sanitizeTitle(title) {
+      let t = String(title || "").trim();
+      if (!t) return t;
+      // 後ろの括弧を削除（全角・半角）
+      t = t.replace(/\s*[（(][^）)]*[）)]\s*$/g, "").trim();
+      return t;
+    }
 
+    const evidence_pool = buildEvidencePool(profile, history);
+
+    if (DEBUG_EVIDENCE_POOL) {
+      // 品質チェック用（本番では環境変数でOFF推奨）
+      console.log("=== evidence_pool (paid-summary) ===");
+      console.log(JSON.stringify(evidence_pool, null, 2));
+    }
+
+    const SYSTEM_PROMPT = `
+あなたは「恋ぐるラボ」の有料レポート生成のための“要約設計者”です。
+入力として profile（基本情報）と history（会話ログ）と evidence_pool（事実の候補）が与えられます。
+
+あなたの出力は「後段の /api/paid-report が 6000〜8000字級の高品質本文を書ける」ように、
+情報を整理・抽象化し、章立てに沿って“日本語テキスト”を埋めた summaryJson を返すことです。
+
+最重要ルール（安定出力のため）：
+- 今回は A：恋愛の不安 を最優先にする（不安・焦り・温度差・既読/返信・予定未確定・見通し欲など）。
+- fortune_traits は必ず5件（min=5,max=5）。絶対に増減しない。
+- fortune_traits の各要素には evidence（会話からの“事実”）を必ず2〜4個入れる。捏造は禁止。
+- evidence は必ず evidence_pool に含まれる内容だけを使う（軽い言い換えは可、事実追加は不可）。
+- 「ユーザ発言: 1」など内部ラベルやメタ引用は禁止。画面の裏側の話は出さない。
+
+文体ルール（AIっぽさ対策）：
+- 三人称の硬い要約ではなく、仙人口調の“寄り添い”を混ぜる（ただし押し付けない）。
+- 不自然なカギ括弧（「」）の多用は禁止。必要最小限にする。
+- タイトルの末尾に（）を付けない。
+
+fortune_traits の構成ルール：
+- 最初の3件は固定（このタイトルで固定）：
+  1) 反応の温度差で心がぐらぐらする
+  2) 小さな違和感を拾いすぎる
+  3) 次が決まらないと不安が増える
+- 2) の one_liner は必ず次の文にする（完全一致）：
+  「違和感を見逃さないのは、“精度の高い気配センサー”を持っているという証拠じゃ。」
+- 残り2件は可変（下の候補6つから“根拠が多い順”に2つ選ぶ）。ただし evidence が2件以上取れない候補は選ばない。
+  候補6つ：
+  A) 自分を責めすぎる
+  B) 白黒を急ぎたくなる
+  C) 相手の本心を推理しすぎる
+  D) 取り戻そうとして焦る
+  E) 距離を詰める速度が上がる
+  F) 気持ちが急に加速しやすい
+
+summaryJson の各フィールドの役割：
+- profile_snapshot: 読者が「自分の話だ」と感じる、短い導入（寄り添い＋事実）
+- summary_30sec: 30秒で要点が掴める結論（寄り添い＋構図）
+- fortune_traits: 0章の素材（タイトル/one_liner/description/evidence）
+- chapter1_emotion_translation: 感情の翻訳（寄り添い章）
+- chapter2_trigger_map: しんどさのトリガー地図
+- chapter3_relationship_structure: 二人の構図
+- chapter4_partner_hypothesis: 相手側の仮説（断定しない）
+- chapter5_decision_room: 意思決定章（少なくとも2ルート提示：復縁寄せ／距離を置く・諦める寄せ）
+- chapter6_line_library: LINE文案ライブラリ（複数パターン）
+- chapter7_action_plans: 今後のアクションプラン（最低3案。目的/期間/ステップ/if-then分岐を含む）
+- closing_message: 優しい締め（説教しない）
+
+出力は JSON のみ。コードフェンス禁止。`.trim();
+
+    // summaryJson スキーマ
     const SUMMARY_SCHEMA = {
       type: "object",
       additionalProperties: false,
       required: [
         "title",
         "profile_snapshot",
-        "summary",
+        "summary_30sec",
         "fortune_traits",
-        "chapter1_basic_personality",
-        "chapter2_current_situation",
-        "chapter3_emotions",
-        "chapter4_patterns_with_partner",
-        "chapter5_hints",
+        "chapter1_emotion_translation",
+        "chapter2_trigger_map",
+        "chapter3_relationship_structure",
+        "chapter4_partner_hypothesis",
+        "chapter5_decision_room",
+        "chapter6_line_library",
+        "chapter7_action_plans",
         "closing_message",
       ],
       properties: {
         title: { type: "string" },
         profile_snapshot: { type: "string" },
-        summary: { type: "string" },
+        summary_30sec: { type: "string" },
 
         fortune_traits: {
           type: "array",
@@ -120,75 +207,38 @@ export default async function handler(req, res) {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["trait_key", "title", "reading", "evidence"],
+            required: ["title", "one_liner", "description", "evidence"],
             properties: {
-              trait_key: { type: "string", enum: TRAIT_KEYS },
               title: { type: "string" },
-              reading: { type: "string" }, // 占いっぽい性格当て（本文素材）
+              one_liner: { type: "string" },
+              description: { type: "string" },
               evidence: {
                 type: "array",
                 minItems: 2,
                 maxItems: 4,
-                items: { type: "string" }, // evidence_pool からの “文字列そのまま” を入れる
+                items: { type: "string" },
               },
             },
           },
         },
 
-        chapter1_basic_personality: { type: "string" },
-        chapter2_current_situation: { type: "string" },
-        chapter3_emotions: { type: "string" },
-        chapter4_patterns_with_partner: { type: "string" },
-        chapter5_hints: { type: "string" },
+        chapter1_emotion_translation: { type: "string" },
+        chapter2_trigger_map: { type: "string" },
+        chapter3_relationship_structure: { type: "string" },
+        chapter4_partner_hypothesis: { type: "string" },
+        chapter5_decision_room: { type: "string" },
+        chapter6_line_library: { type: "string" },
+        chapter7_action_plans: { type: "string" },
         closing_message: { type: "string" },
       },
     };
 
-// ===== DEBUG LOG (temporary) =====
-console.log("[paid-summary] evidence_pool size:", finalEvidencePool.length);
-console.log("[paid-summary] evidence_pool preview:\n" + finalEvidencePool.map((x, i) => `${i + 1}. ${x}`).join("\n"));
-// ===== /DEBUG LOG =====
+    const payload = {
+      profile,
+      history,
+      evidence_pool,
+    };
 
-    // =========================
-    // SYSTEM_PROMPT（A優先＋evidence_poolからの選択を強制）
-    // =========================
-    const SYSTEM_PROMPT = `
-あなたは「恋ぐるラボ」の有料レポート生成のための“要約設計者”です。
-入力として profile（基本情報）と history（会話ログ：user/assistant）と evidence_pool（事実候補のプール）が与えられます。
-
-あなたの出力は「後段の /api/paid-report が 6000〜8000字級の重厚な本文を書ける」ように、
-情報を整理・抽象化し、章立てに沿って “日本語テキスト” を埋めた JSON だけを返してください。
-
-最重要：A（恋愛の不安）を優先してください。
-- 不安のトリガー（曖昧さ、温度差、予定が決まらない、返信ペースの揺れ、など）に焦点を当てる
-- 押し付けない（断定しすぎない：〜の可能性、〜になりがち）
-
-【捏造禁止ルール（絶対）】
-- fortune_traits.evidence は「evidence_pool に含まれる文字列を“そのまま”」2〜4個選んで入れてください。
-- evidence_pool に無い事実を evidence に書いてはいけません（言い換えも禁止）。
-- evidence はプロフィール入力やユーザ発言の要約・抜粋が含まれます。そこから“選ぶ”だけにしてください。
-- assistant の発言は内容に含まれていても、事実として採用しないでください（ユーザ発言・profile由来のみ）。
-
-【fortune_traits 固定ルール（絶対）】
-- fortune_traits は必ず5件（min=5,max=5）。増減禁止。
-- trait_key は必ず次の5つをそれぞれ1回ずつ使う（重複禁止）：
-  1) sign_sensitivity
-  2) temperature_gap_sensitivity
-  3) self_blame_tendency
-  4) uncertainty_stress
-  5) future_visibility_need
-- title は日本語で分かりやすく（例：予兆検知、温度差耐性、自責化、不確実性ストレス、見通し欲 など）。
-- reading は「占いっぽい性格当て」の素材として、各 280〜420文字程度で書く（です/ます禁止、ただし仙人語に寄せすぎず中立寄りでOK）。
-
-【その他】
-- history には【メタ情報】や JSON が含まれていても良い。理解に使ってよいが、出力にメタ文言は混ぜない。
-- タイトルは短く惹きがあるが煽りすぎない。
-- すべて日本語。絵文字は不要。
-`.trim();
-
-    // =========================
-    // OpenAI へ（json_schema で強制）
-    // =========================
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -203,14 +253,15 @@ console.log("[paid-summary] evidence_pool preview:\n" + finalEvidencePool.map((x
           {
             role: "user",
             content:
-              "次の入力をもとに、指定スキーマに厳密準拠した summaryJson を生成してください。\n\n" +
-              JSON.stringify({ profile, history, evidence_pool: finalEvidencePool }, null, 2),
+              "次の入力をもとに、指定スキーマに厳密準拠した summaryJson を生成してください。\n" +
+              "必ず evidence_pool の範囲内で根拠を作り、捏造はしないでください。\n\n" +
+              JSON.stringify(payload, null, 2),
           },
         ],
         response_format: {
           type: "json_schema",
           json_schema: {
-            name: "paid_summary",
+            name: "paid_summary_v2",
             strict: true,
             schema: SUMMARY_SCHEMA,
           },
@@ -220,7 +271,11 @@ console.log("[paid-summary] evidence_pool preview:\n" + finalEvidencePool.map((x
 
     if (!openaiRes.ok) {
       const text = await openaiRes.text();
-      return res.status(500).json({ error: "OpenAI API error", status: openaiRes.status, body: text });
+      return res.status(500).json({
+        error: "OpenAI API error",
+        status: openaiRes.status,
+        body: text,
+      });
     }
 
     const data = await openaiRes.json();
@@ -233,18 +288,8 @@ console.log("[paid-summary] evidence_pool preview:\n" + finalEvidencePool.map((x
       return res.status(500).json({ error: "Failed to parse model JSON", raw });
     }
 
-    // 最後に念のため：trait_key の5種が揃っているか軽くチェック（壊れてたら落とす）
-    try {
-      const keys = new Set((summaryJson.fortune_traits || []).map((x) => x.trait_key));
-      const ok =
-        keys.size === 5 &&
-        ["sign_sensitivity", "temperature_gap_sensitivity", "self_blame_tendency", "uncertainty_stress", "future_visibility_need"].every(
-          (k) => keys.has(k)
-        );
-      if (!ok) {
-        return res.status(500).json({ error: "fortune_traits keys invalid", fortune_traits: summaryJson.fortune_traits });
-      }
-    } catch {}
+    // タイトル末尾の（）除去（最終保険）
+    summaryJson.title = sanitizeTitle(summaryJson.title);
 
     return res.status(200).json(summaryJson);
   } catch (err) {
