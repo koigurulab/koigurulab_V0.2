@@ -144,6 +144,11 @@ export default async function handler(req, res) {
       },
     };
 
+// ===== DEBUG LOG (temporary) =====
+console.log("[paid-summary] evidence_pool size:", finalEvidencePool.length);
+console.log("[paid-summary] evidence_pool preview:\n" + finalEvidencePool.map((x, i) => `${i + 1}. ${x}`).join("\n"));
+// ===== /DEBUG LOG =====
+
     // =========================
     // SYSTEM_PROMPT（A優先＋evidence_poolからの選択を強制）
     // =========================
