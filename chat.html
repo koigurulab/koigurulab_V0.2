@@ -511,10 +511,10 @@ function getAssistantTurn() {
   return history.filter(m => m.role === "assistant").length + 1;
 }
 
-// フェーズ分け：1〜4:F, 5〜6:P, 7〜9:D
+// フェーズ分け：1〜3:F, 4〜5:P, 6〜8:D
 function getPhaseFromTurn(turn) {
-  if (turn <= 4) return "F";
-  if (turn <= 6) return "P";
+  if (turn <= 3) return "F";
+  if (turn <= 5) return "P";
   return "D";
 }
 
@@ -533,7 +533,7 @@ function getQuestionTheme(phase) {
 let isBusy = false;
 
 // 仙人ターン上限（LLMからの返答は9ターンまで）
-const MAX_TURNS = 9;
+const MAX_TURNS = 8;
 let reportGenerated = false; //トリセツを一度だけ出すためのフラグ 
 // 会話終了フラグ
 let isFinished = false;
@@ -1426,3 +1426,4 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
+
