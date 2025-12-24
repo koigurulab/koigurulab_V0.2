@@ -1382,26 +1382,16 @@ async function startCheckout(token, btn) {
 /* ===========================
    14) イベント & 起動
    =========================== */
-
-// 送信はクリックのみ（awaitは使わない）
-sendBtn.addEventListener("click", (e) => {
-  e.preventDefault();
-  Promise.resolve(sendFree()).catch((err) => {
-    console.error("sendFree failed:", err);
-  });
-});
-
-// Enterキーでは送信しない（IME確定は邪魔しない）
-freeInput.addEventListener("keydown", (e) => {
-  if (e.key !== "Enter") return;
-  if (e.isComposing) return;   // IME確定中は触らない
-  e.preventDefault();          // 変換中でないEnterだけ無効化
+sendBtn.onclick = sendFree;
+freeInput.addEventListener("keydown",(e)=>{
+  if (e.key==="Enter"){ e.preventDefault(); sendFree(); }
 });
 
 (function boot(){
   showAsk();
 })();
 </script>
+
 </body>
 </html>
 
