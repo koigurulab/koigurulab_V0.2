@@ -20,7 +20,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Yu Gothic", "YuGothic",
         system-ui, "Segoe UI", sans-serif;
       color: var(--ink);
-      background: radial-gradient(circle at toƒp left, #ffe6ec, #fff7f8 40%, #ffffff 80%);
+      background: radial-gradient(circle at top left, #ffe6ec, #fff7f8 40%, #ffffff 80%);
     }
 
     /* ヘッダー（indexとほぼ共通） */
@@ -1542,8 +1542,16 @@ async function startCheckout(token, btnEl) {
    14) イベント & 起動
    =========================== */
 sendBtn.onclick = sendFree;
-freeInput.addEventListener("keydown",(e)=>{
-  if (e.key==="Enter"){ e.preventDefault(); sendFree(); }
+
+// Enterキーで送信しない（IME確定のため）
+freeInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    // 送信はしない。IMEの確定はブラウザ側で通常通り動きます。
+    //（preventDefaultも不要）
+    return;
+  }
+});
+
 });
 
 (function boot(){
@@ -1553,3 +1561,4 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
+
