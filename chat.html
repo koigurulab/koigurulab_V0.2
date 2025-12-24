@@ -20,7 +20,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Yu Gothic", "YuGothic",
         system-ui, "Segoe UI", sans-serif;
       color: var(--ink);
-      background: radial-gradient(circle at top left, #ffe6ec, #fff7f8 40%, #ffffff 80%);
+      background: radial-gradient(circle at toƒp left, #ffe6ec, #fff7f8 40%, #ffffff 80%);
     }
 
     /* ヘッダー（indexとほぼ共通） */
@@ -1350,10 +1350,14 @@ async function generateReportFlow() {
   if (reportGenerated) return;
   reportGenerated = true;
 
-  statusEl.textContent = "仙人がレポートの下書きをまとめておるぞ…";
+  // 入力欄は止める（無料版＆課金導線に集中）
+  sendBtn.disabled = true;
+  freeInput.disabled = true;
+  stepHint.textContent = "";
+  statusEl.textContent = "仙人がまとめの準備をしておるぞ…";
 
   try {
-    // 1) summaryJson（設計図）
+    // 1) summaryJson（設計図）を作る：ここは従来どおり
     const summaryResp = await fetch("/api/paid-summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1361,53 +1365,161 @@ async function generateReportFlow() {
     });
 
     if (!summaryResp.ok) {
-      reportGenerated = false; // リトライできるよう戻す
-      addAssistant("サマリー生成でエラーが出てしまったようじゃ…。もう一度試してくれんか。");
+      reportGenerated = false;
+      addAssistant("サマリー生成でエラーが出てしもうた…少し時間をおいて、もう一度試してくれんか。");
       return;
     }
 
     const summaryJson = await summaryResp.json();
-    localStorage.setItem("koi_summaryJson", JSON.stringify(summaryJson)); // 保険
 
-    // 2) 本文ストリーム
-    const reportResp = await fetch("/api/paid-report", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(summaryJson),
-    });
+    // localStorage に保存（成功ページで使う／MVPの簡易永続化）
+    localStorage.setItem("koi_summaryJson", JSON.stringify(summaryJson));
+    localStorage.setItem("koi_profile", JSON.stringify(profile));
+    localStorage.setItem("koi_history", JSON.stringify(history));
 
-    if (!reportResp.ok || !reportResp.body) {
-      reportGenerated = false;
-      addAssistant("レポート生成でエラーが出てしまったようじゃ…。本文だけ再生成できるようにしておくのう。");
-      return;
-    }
+    // 2) ここで「無料版を授ける宣言」
+    addAssistant("……そしてじゃ。いまから、お主の“癖”と、今夜から効く小さな助言を授けるぞ。まずは無料版じゃ。");
 
-    statusEl.textContent = "仙人が本文を執筆中じゃ…";
+    // 3) 無料版（占い3つ）を /api/chat で生成して表示
+    await generateFreePreview(summaryJson);
 
-    const bubble = addAssistantStreamBubble("── ここからは『恋愛取扱説明書』じゃ。\n\n");
-
-    const reader = reportResp.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      bubble.textContent += chunk;
-      chat.scrollTop = chat.scrollHeight;
-    }
+    // 4) 課金文言＋CTAボタンを表示（ここが最重要）
+    showPayCTA();
 
   } catch (e) {
     console.error(e);
     reportGenerated = false;
-    addAssistant("今はレポート生成がうまく動かなんだ…時間をおいて試してくれんか。");
+    addAssistant("うまく動かなんだ…すまぬのう。少し時間をおいて試してくれんか。");
   } finally {
     statusEl.textContent = "";
-    // ここは「追撃メッセージ」ではなく、UIロックだけにするのが自然
-    sendBtn.disabled = true;
-    freeInput.disabled = true;
-    freeInput.placeholder = "レポートを作成したぞ。必要ならスクショして保存しておくのじゃ。";
-    stepHint.textContent = "";
+  }
+}
+  async function generateFreePreview(summaryJson) {
+  statusEl.textContent = "無料版トリセツを執筆中じゃ…";
+
+  const me = profile.gender === "男性" ? "俺" : "私";
+  const name = profile.name || "お主";
+
+  const sys = `
+あなたは「恋脳レポート」の恋愛仙人じゃ。
+一人称は「わし」。ユーザは必ず「お主」か「${name}」で呼ぶ。
+敬語（です/ます）は禁止。語尾は「〜じゃ／〜のう／〜ぞ／〜かもしれん」を混ぜる。
+
+いまは無料版を出す。
+出力ルール：
+- 見出しの前の「#」は出さない（Markdown見出しは使わない）
+- 文字数はだいたい 1500〜2200 文字
+- 次の構成で書く（括弧内の文字は出力しない）：
+
+1) はじめに：いまのお主の現在地
+2) 無料の占い：恋の不安に揺れやすい3つのクセ（必ず3つ。タイトルは以下から選ぶ）
+   - 反応の温度差で心がぐらぐらする
+   - 小さな違和感を拾いすぎる
+   - 次が決まらないと不安が増える
+   - 自分を責めすぎる
+   - 相手の本心を推理しすぎる
+  ※1つ目の説明文の中に、必ずこの一文をそのまま入れる：
+    「違和感を見逃さないのは、“精度の高い気配センサー”を持っているという証拠じゃ。」
+  ※各クセは「状況の例」→「なぜそうなるか」→「今夜から効く一手」を短く
+
+3) 結び：仙人からの最後のひと言（短く背中を押す）
+
+禁止：
+- 「（寄り添い章）」「（最低3案）」など内部メモっぽい括弧は絶対に出さない
+- 完全版の本文そのものは出さない（予告だけ）
+`.trim();
+
+  const user = `
+【参考データ】
+- profile: ${JSON.stringify(profile)}
+- history(last 8 turns): ${JSON.stringify(history.slice(-16))}
+- summaryJson: ${JSON.stringify(summaryJson)}
+- 一人称（ユーザ心の声用）: ${me}
+`.trim();
+
+  try {
+    const reply = await withRetry(() => callOpenAI([
+      { role: "system", content: sys },
+      { role: "user", content: user }
+    ]));
+
+    // それっぽく区切って出す
+    const bubble = addAssistantStreamBubble("── 無料版『恋愛取扱説明書』じゃ ──\n\n");
+    bubble.textContent += reply.trim();
+    chat.scrollTop = chat.scrollHeight;
+
+  } finally {
+    statusEl.textContent = "";
+  }
+}
+  function showPayCTA() {
+  // 既存の選択肢欄をCTAに使う（UIを増やさず最短で骨格を通す）
+  choicesWrap.innerHTML = "";
+
+  // 課金文言（チャット内に出す）
+  addAssistant(
+    "無料版はここまでじゃ。\n" +
+    "……じゃが本当は、\n" +
+    "・お主の心が揺れる“引き金”の地図\n" +
+    "・二人の構図（アクセルとブレーキの噛み合わせ）\n" +
+    "・復縁寄せ／距離を置く寄せの意思決定\n" +
+    "・そのまま送れるLINE文案\n" +
+    "・今後のアクションプラン（複数）\n" +
+    "まで、一本の道しるべとして渡せるんじゃ。\n" +
+    "必要なら、完全版を作ってやろうかのう。"
+  );
+
+  // CTAボタン
+  const btn = document.createElement("button");
+  btn.className = "choice"; // 既存スタイル流用
+  btn.textContent = "完全版を¥480で受け取る";
+  btn.onclick = startCheckout;
+  choicesWrap.appendChild(btn);
+
+  // 参考：キャンセル導線（任意）
+  const btn2 = document.createElement("button");
+  btn2.className = "choice secondary";
+  btn2.textContent = "いったん考える（閉じる）";
+  btn2.onclick = () => {
+    addAssistant("うむ。焦らんでええ。また必要になったら来い。");
+  };
+  choicesWrap.appendChild(btn2);
+}
+
+async function startCheckout() {
+  try {
+    statusEl.textContent = "決済画面へ案内中じゃ…";
+    const res = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // server側が何も読まなくてもOKなように最低限だけ送る
+      body: JSON.stringify({
+        // 使わなくても害はない
+        purpose: "koinou_paid_report",
+        // 成功/キャンセルの戻り先がserver実装依存なら、ここは無視されてもOK
+        successPath: "/paid-success.html",
+        cancelPath: "/paid-cancel.html"
+      }),
+    });
+
+    const dataText = await res.text();
+    if (!res.ok) throw new Error(dataText || "checkout_error");
+
+    const data = JSON.parse(dataText);
+
+    // create-checkout-session が {url} を返す実装を想定（一般的）
+    if (data.url) {
+      window.location.href = data.url;
+      return;
+    }
+
+    // 万一 {sessionId} だけ返す実装だった場合の保険
+    addAssistant("決済URLの取得に失敗したようじゃ…（urlが返ってこん）。/api/create-checkout-session の返却を確認してくれんか。");
+  } catch (e) {
+    console.error(e);
+    addAssistant("すまぬ、決済画面への案内で詰まったのう。時間をおいてもう一度押してくれ。");
+  } finally {
+    statusEl.textContent = "";
   }
 }
 
@@ -1426,4 +1538,5 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
+
 
