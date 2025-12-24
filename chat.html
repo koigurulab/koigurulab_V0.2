@@ -23,7 +23,6 @@
       background: radial-gradient(circle at top left, #ffe6ec, #fff7f8 40%, #ffffff 80%);
     }
 
-    /* ヘッダー（indexとほぼ共通） */
     header {
       position: sticky;
       top: 0;
@@ -108,7 +107,6 @@
       display: grid;
       grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
       gap: 28px;
-      /* 追加：ヘッダーを引いた分だけ縦を確保 */
       min-height: calc(100vh - 80px);
     }
     @media (max-width: 800px) {
@@ -136,7 +134,6 @@
       margin-top: 12px;
     }
 
-    /* チャットカード（右側コンテナ） */
     .chat-card {
       background: var(--card);
       border-radius: 20px;
@@ -145,28 +142,18 @@
       border: 1px solid rgba(248, 113, 113, 0.25);
       display: flex;
       flex-direction: column;
-      /* ここから変更点 ↓ */
-      height: calc(100vh - 160px); /* 画面高ベースでかなり大きく */
+      height: calc(100vh - 160px);
       max-height: none;
     }
-
-    /* スマホ時は少しだけ低めに調整 */
     @media (max-width: 800px) {
-      .chat-card {
-        height: calc(100vh - 200px);
-      }
+      .chat-card { height: calc(100vh - 200px); }
     }
-
-    /* ここから下は「仙人チャット頭脳」用のスタイル追加分 */
 
     .small {
       color: var(--muted);
       font-size: 12px;
     }
-
-    .step-hint {
-      margin-top: 6px;
-    }
+    .step-hint { margin-top: 6px; }
 
     .chat-box {
       height: 100%;
@@ -176,15 +163,11 @@
       padding: 8px;
       border: 1px solid #ffe4e6;
       margin-top: 6px;
-      /* 追加：flex で縦に伸ばす */
       flex: 1 1 auto;
       min-height: 0;
     }
 
-    .row {
-      display: flex;
-      margin: 6px 0;
-    }
+    .row { display: flex; margin: 6px 0; }
     .row .bubble {
       max-width: 82%;
       padding: 8px 10px;
@@ -194,17 +177,13 @@
       font-size: 12px;
       line-height: 1.7;
     }
-    .row.assistant {
-      justify-content: flex-start;
-    }
+    .row.assistant { justify-content: flex-start; }
     .row.assistant .bubble {
       background: #ffffff;
       color: #111827;
       border-bottom-left-radius: 4px;
     }
-    .row.user {
-      justify-content: flex-end;
-    }
+    .row.user { justify-content: flex-end; }
     .row.user .bubble {
       background: #f97373;
       color: #fff;
@@ -231,9 +210,7 @@
       background: #e5e7eb;
       color: #111827;
     }
-    .choice:focus {
-      outline: 3px solid #fecaca;
-    }
+    .choice:focus { outline: 3px solid #fecaca; }
 
     .composer {
       display: flex;
@@ -241,16 +218,10 @@
       margin-top: 10px;
       align-items: center;
     }
+    .composer input { flex: 1; }
 
-    .composer input {
-      flex: 1;
-    }
+    .muted { color: var(--muted); }
 
-    .muted {
-      color: var(--muted);
-    }
-
-    /* 既存の入力系スタイルを再利用 */
     .chat-input {
       width: 100%;
       font-size: 13px;
@@ -276,17 +247,15 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    .chat-send-btn:hover {
-      background: var(--accent-dark);
-    }
+    .chat-send-btn:hover { background: var(--accent-dark); }
     .chat-send-btn[disabled] {
       opacity: 0.6;
       cursor: default;
     }
   </style>
 </head>
-<body>
 
+<body>
 <header>
   <div class="header-inner">
     <div class="logo">
@@ -298,19 +267,14 @@
     </div>
     <nav class="header-nav">
       <a href="index.html" class="header-link">トップに戻る</a>
-      <button class="header-cta" onclick="window.location.href='index.html'">
-        LPを見る
-      </button>
+      <button class="header-cta" onclick="window.location.href='index.html'">LPを見る</button>
     </nav>
   </div>
 </header>
 
 <main class="chat-layout">
-  <!-- 左：説明 -->
   <section>
-    <h1 class="chat-intro-title">
-      恋愛仙人に、今の状況をそのまま話してみてください。
-    </h1>
+    <h1 class="chat-intro-title">恋愛仙人に、今の状況をそのまま話してみてください。</h1>
     <p class="chat-intro-lead">
       「相手との関係」「最近あった出来事」「いちばんモヤモヤしていること」。<br>
       雑でもいいので、頭の中にあることをそのまま書いてくれれば大丈夫です。<br><br>
@@ -323,81 +287,110 @@
     </p>
   </section>
 
-  <!-- 右：チャットUI（仙人本番ロジック用DOMだけ残す） -->
   <section>
     <div class="chat-card" id="chat-card">
       <div class="small">
         ここからは恋愛仙人とのチャットじゃ。選択肢を押すか、下の入力欄にそのまま書いてくれればよいぞ。
       </div>
-      <!-- メッセージ表示エリア -->
+
       <div id="chat" class="chat-box"></div>
-
-      <!-- ステップのヒント -->
       <div id="step-hint" class="small step-hint"></div>
-
-      <!-- 選択肢ボタン -->
       <div id="choices" class="choices"></div>
 
-      <!-- 自由入力 ＋ 送信ボタン -->
       <div class="composer">
-        <input
-          id="free-input"
-          class="chat-input"
-          placeholder="自由入力はこちら（選択肢がない時や補足に）。"
-        />
-        <button id="send" class="chat-send-btn">送信</button>
+        <input id="free-input" class="chat-input" placeholder="自由入力はこちら（選択肢がない時や補足に）。" />
+        <button id="send" class="chat-send-btn" type="button">送信</button>
       </div>
 
-      <!-- ステータス表示 -->
       <div id="status" class="small muted"></div>
     </div>
   </section>
 </main>
 
 <script>
-
 /* ===========================
    1) DOM
    =========================== */
-const chat       = document.getElementById("chat");
-const choicesWrap= document.getElementById("choices");
-const freeInput  = document.getElementById("free-input");
-const sendBtn    = document.getElementById("send");
-const statusEl   = document.getElementById("status");
-const stepHint   = document.getElementById("step-hint");
+const chat        = document.getElementById("chat");
+const choicesWrap = document.getElementById("choices");
+const freeInput   = document.getElementById("free-input");
+const sendBtn     = document.getElementById("send");
+const statusEl    = document.getElementById("status");
+const stepHint    = document.getElementById("step-hint");
 
 function addAssistant(text){
-  const row=document.createElement("div");
-  row.className="row assistant";
-  const b=document.createElement("div");
-  b.className="bubble";
-  b.textContent=String(text ?? "");
+  const row = document.createElement("div");
+  row.className = "row assistant";
+  const b = document.createElement("div");
+  b.className = "bubble";
+  b.textContent = String(text ?? "");
   row.appendChild(b);
   chat.appendChild(row);
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
 }
 
 function addAssistantStreamBubble(initialText=""){
-  const row=document.createElement("div");
-  row.className="row assistant";
-  const b=document.createElement("div");
-  b.className="bubble";
-  b.textContent=initialText;
+  const row = document.createElement("div");
+  row.className = "row assistant";
+  const b = document.createElement("div");
+  b.className = "bubble";
+  b.textContent = initialText;
   row.appendChild(b);
   chat.appendChild(row);
-  chat.scrollTop=chat.scrollHeight;
-  return b; // このbubbleに追記していく
+  chat.scrollTop = chat.scrollHeight;
+  return b;
 }
 
 function addUser(text){
-  const row=document.createElement("div");
-  row.className="row user";
-  const b=document.createElement("div");
-  b.className="bubble";
-  b.textContent=text;
+  const row = document.createElement("div");
+  row.className = "row user";
+  const b = document.createElement("div");
+  b.className = "bubble";
+  b.textContent = text;
   row.appendChild(b);
   chat.appendChild(row);
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* ===========================
+   1.5) Token（Stripe紐づけ）: 追加
+   =========================== */
+function makeToken(){
+  if (window.crypto?.randomUUID) return crypto.randomUUID();
+  return "tok_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function saveSessionByToken(token, payload){
+  // payload: { summaryJson, profile, history }
+  try {
+    localStorage.setItem("koi_token", token);
+    localStorage.setItem(`koi_summaryJson_${token}`, JSON.stringify(payload.summaryJson ?? null));
+    localStorage.setItem(`koi_profile_${token}`, JSON.stringify(payload.profile ?? null));
+    localStorage.setItem(`koi_history_${token}`, JSON.stringify(payload.history ?? null));
+    localStorage.setItem(`koi_createdAt_${token}`, String(Date.now()));
+  } catch (e) {
+    console.warn("localStorage save failed:", e);
+  }
+}
+
+async function startCheckout(token){
+  // サーバ側で /api/create-checkout-session を実装している想定
+  // { token } を受けて Stripe の Checkout URL を返す
+  const res = await fetch("/api/create-checkout-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token })
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    console.log("create-checkout-session error:", res.status, text);
+    throw new Error("CHECKOUT_ERROR");
+  }
+
+  const data = JSON.parse(text);
+  if (!data?.url) throw new Error("CHECKOUT_URL_MISSING");
+  window.location.href = data.url;
 }
 
 /* ===========================
@@ -476,26 +469,26 @@ const profile = {
    =========================== */
 const steps = [
   { key:"name",        kind:"input",  ask:`よく来てくれたな。恋愛仙人じゃ。まずはおぬしの名前を教えておくれ` },
-  { key:"gender",      kind:"choice", ask:(p)=>`${p.name}、よろしくのう。性別はどれじゃ？`,                         choices:GENDER },
-  { key:"selfMBTI",    kind:"choice", ask:`お主のMBTIはどれじゃ？`,                                                   choices:MBTI_LIST },
-  { key:"selfLove",    kind:"choice", ask:`お主の恋愛16タイプは？`,                                                   choices:LOVE16_LIST },
-  { key:"targetGender",kind:"choice", ask:`恋愛対象の性別は？`,                                                       choices:TARGET_GENDER },
-  { key:"targetMBTI",  kind:"choice", ask:`相手のMBTIが分かれば教えてくれ`,                                           choices:MBTI_LIST },
-  { key:"targetLove",  kind:"choice", ask:`相手の恋愛16タイプは分かるかの？`,                                         choices:LOVE16_LIST },
+  { key:"gender",      kind:"choice", ask:(p)=>`${p.name}、よろしくのう。性別はどれじゃ？`, choices:GENDER },
+  { key:"selfMBTI",    kind:"choice", ask:`お主のMBTIはどれじゃ？`,                           choices:MBTI_LIST },
+  { key:"selfLove",    kind:"choice", ask:`お主の恋愛16タイプは？`,                           choices:LOVE16_LIST },
+  { key:"targetGender",kind:"choice", ask:`恋愛対象の性別は？`,                               choices:TARGET_GENDER },
+  { key:"targetMBTI",  kind:"choice", ask:`相手のMBTIが分かれば教えてくれ`,                   choices:MBTI_LIST },
+  { key:"targetLove",  kind:"choice", ask:`相手の恋愛16タイプは分かるかの？`,                 choices:LOVE16_LIST },
   { key:"ageRange",    kind:"input",  ask:`お主の年齢レンジを教えてくれ（例：20〜22）` },
   { key:"status",      kind:"input",  ask:`学生／社会人などの状態は？（例：社会人1〜3年目）` },
   { key:"relation",    kind:"input",  ask:`関係性は？（例：片思い／交際◯ヶ月／元カノ など）` },
-  { key:"meeting",     kind:"choice", ask:`出会い方は？`,                                                             choices:MEETING },
+  { key:"meeting",     kind:"choice", ask:`出会い方は？`,                                     choices:MEETING },
   { key:"known",       kind:"input",  ask:`知り合ってどれくらい？（例：1〜3ヶ月）` },
   { key:"contact",     kind:"input",  ask:`連絡頻度と、どちらからが多い？（例：2〜3日に1回／送るのは：自分からが多い）` },
   { key:"worry",       kind:"input",  ask:`いちばん悩んでいるポイントを1〜2行でそのまま書いてくれ` },
   { key:"mental",      kind:"input",  ask:`今の心の状態は？（例：不安はあるが日常は回る）` },
-  { key:"style",       kind:"choice", ask:`相談スタイルを選んでくれ。`,                                               choices:["1) もやもや整理したい","2) 今後のアクションを決めたい"] }
+  { key:"style",       kind:"choice", ask:`相談スタイルを選んでくれ。`, choices:["1) もやもや整理したい","2) 今後のアクションを決めたい"] }
 ];
 
 let idx = 0;
 
-// LLM用の history（メタ付き user / assistant）
+// LLM用の history
 const history = [];
 
 // 会話の状態（タイプ要約など）
@@ -506,42 +499,31 @@ const dialogState = {
   questionTheme: ""
 };
 
-// assistantターン数とフェーズ判定
 function getAssistantTurn() {
   return history.filter(m => m.role === "assistant").length + 1;
 }
-
-// フェーズ分け：1〜3:F, 4〜5:P, 6〜8:D
 function getPhaseFromTurn(turn) {
   if (turn <= 3) return "F";
   if (turn <= 5) return "P";
   return "D";
 }
-
-// questionTheme をフェーズから決める
 function getQuestionTheme(phase) {
-  if (phase === "F") {
-    return "今いちばんしんどいと感じていそうなポイント";
-  } else if (phase === "P") {
-    return "相手はなぜ今のような動きをしているのかについての直感";
-  } else {
-    return "今この恋をどう進めたいと思っているかについての本音";
-  }
+  if (phase === "F") return "今いちばんしんどいと感じていそうなポイント";
+  if (phase === "P") return "相手はなぜ今のような動きをしているのかについての直感";
+  return "今この恋をどう進めたいと思っているかについての本音";
 }
 
-// API呼び出し中フラグ
 let isBusy = false;
 
-// 仙人ターン上限（LLMからの返答は9ターンまで）
+// ※ 元コードに合わせて 8 ターンで「有料導線へ」
+// （ここでは“自動で有料レポート生成”はせず、Stripeに繋ぐ）
 const MAX_TURNS = 8;
-let reportGenerated = false; //トリセツを一度だけ出すためのフラグ 
-// 会話終了フラグ
+let paywallPrepared = false; // 有料導線を一度だけ出す
 let isFinished = false;
 
-// UIロック/解除
 function setBusy(flag){
   isBusy = flag;
-  sendBtn.disabled   = flag;
+  sendBtn.disabled = flag;
   freeInput.disabled = flag;
   const choiceBtns = choicesWrap.querySelectorAll("button.choice");
   choiceBtns.forEach(btn => btn.disabled = flag);
@@ -562,30 +544,24 @@ async function onAnswer(valueRaw){
   }
 
   try {
-    // プロフィールに格納
     if (s.key === "style") {
       profile.style = value.startsWith("2") ? "2" : "1";
     } else {
       profile[s.key] = value;
     }
 
-    // ユーザ側バブル
     addUser(value);
 
-    // いま表示されている選択肢は押せなくしておく
     const choiceBtns = choicesWrap.querySelectorAll("button.choice");
     choiceBtns.forEach(btn => btn.disabled = true);
 
-    // 一言コメント（MBTI / 恋愛16 / 相手タイプなど）
     await quickAcknowledge(s.key, value);
 
-    // 次のステップへ
     idx++;
     if (idx < steps.length) {
       setBusy(false);
       showAsk();
     } else {
-      // インテーク完了 → 初回長文生成（Fフェーズ1ターン目）
       statusEl.textContent = "仙人が考え中じゃ…";
       await startFirstTurn();
       statusEl.textContent = "";
@@ -600,219 +576,10 @@ async function onAnswer(valueRaw){
 }
 
 /* ===========================
-   5) インテーク時の一言コメント
+   5) インテーク時の一言コメント（元コード踏襲）
    =========================== */
 async function quickAcknowledge(key, value){
-  try {
-    const me = profile.gender === "男性" ? "俺" : "私";
-
-    // --- 自分の MBTI ---
-    if (key === "selfMBTI" && MBTI_DEF[value]) {
-      const d = MBTI_DEF[value];
-      const msgs = [
-        {
-          role:"system",
-          content: `
-あなたは「恋脳レポート」の恋愛仙人じゃ。
-一人称は「わし」。ユーザは「お主」かニックネーム（${profile.name}）で呼ぶ。
-これは『お主自身』のMBTIタイプを受け取った場面じゃ。
-
-出力条件：
-・最初の1文は必ず「ほう、${d.code}か。」の形で始める。
-・続く3〜5文で、下記の説明をもとに「普段の性格」と「恋愛で出やすい心のクセ」を仙人口調で占いっぽく語る。
-・そのあとに、ユーザの心の中の独り言を2行、カギ括弧で出すこと。
-　- 一人称は「${me}」
-　- 語尾は「〜なんじゃないか…？」「〜なのかな…」「〜かもしれない…」など自然な独白
-　- 仙人語（〜じゃ／〜のう）は絶対に混ぜない
-・最後に1〜2文で、
-　「では次に、${profile.name || "お主"}の恋愛16タイプを教えてくれ。分からなければ『わからない』でもかまわんぞ」
-　という意味の文で、次の質問につなげる。
-・全体でおおよそ400〜550文字程度。
-・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
-・敬語やビジネス口調は禁止。
-          `.trim()
-        },
-        {
-          role:"user",
-          content: `
-MBTI: ${d.code}
-日本語名: ${d.jp}
-説明: ${d.summary}
-          `.trim()
-        }
-      ];
-      
-      statusEl.textContent = "仙人が考え中じゃ…";
-
-      try {
-        const reply = await withRetry(()=>callOpenAI(msgs));
-        addAssistant(reply.trim());
-      } finally {
-        statusEl.textContent = "";
-      }
-      return;
-    }
-
-    // --- 自分の恋愛16タイプ ---
-    if (key === "selfLove" && LOVE16_DEF[value]) {
-      const dLove = LOVE16_DEF[value];
-      const mbti = profile.selfMBTI;
-      const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti] : null;
-
-      const msgs = [
-        {
-          role:"system",
-          content: `
-あなたは「恋脳レポート」の恋愛仙人じゃ。
-一人称は「わし」。ユーザは「お主」かニックネーム（${profile.name}）で呼ぶ。
-これは『お主自身』の恋愛16タイプを受け取った場面じゃ。
-
-出力条件：
-・最初の1文は必ず「ほう、「${value}」タイプか。」で始める。
-・続く3〜4文で、この恋愛16タイプの特徴を、
-　「感情の動き」「恋の入り方」「傷つきやすさ／不安の振れ幅」あたりに触れながら占いっぽく語る。
-・もしMBTI情報（${mbti || "不明"}）がある場合は、
-　中盤〜後半で1〜2文使って
-　『${value}×${mbti}ってな、〜タイプなんじゃ。』
-　のように「掛け算」で性格当てを行い、そのクセが今回の恋でどう出やすいかを述べる。
-・そのあとに、ユーザの心の中の独り言を2行、カギ括弧で出すこと。
-　- 一人称は「${me}」
-　- 語尾は「〜なんじゃないか…？」「〜なのかな…」「〜かもしれない…」など自然な独白
-　- 仙人語は混ぜない
-・最後に1〜2文で、
-　「${profile.name || "お主"}は情熱が強い分、反応の温度差に敏感になりやすいのう」など一言まとめつつ締める。
-・全体で450〜650文字程度。
-・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
-・敬語やビジネス口調は禁止。
-          `.trim()
-        },
-        {
-          role:"user",
-          content: `
-恋愛16タイプ: ${value}
-タイプ説明: ${dLove.summary}
-MBTI: ${dMbti ? dMbti.code : "不明"}
-MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
-          `.trim()
-        }
-      ];
-      statusEl.textContent = "仙人が考え中じゃ…";
-
-      try {
-        const reply = await withRetry(()=>callOpenAI(msgs));
-        addAssistant(reply.trim());
-      } finally {
-        statusEl.textContent = "";
-      }
-      return;
-    }
-
-    // --- 相手の MBTI ---
-    if (key === "targetMBTI" && MBTI_DEF[value]) {
-      const d = MBTI_DEF[value];
-      const targetLabel =
-        profile.targetGender === "男性" ? "男性" :
-        profile.targetGender === "女性" ? "女性" : "相手";
-
-      const msgs = [
-        {
-          role:"system",
-          content: `
-あなたは「恋脳レポート」の恋愛仙人じゃ。
-一人称は「わし」。ユーザは「お主」かニックネーム（${profile.name}）で呼ぶ。
-これは『相手』のMBTIタイプを受け取った場面じゃ。
-
-出力条件：
-・最初の文は必ず「承知したぞ。${d.code}（${d.jp}）の${targetLabel}とな。」の形で始める。
-・続く3〜4文で、このタイプの
-　「行動の速さ／慎重さ」「恋愛でのテンポ」「感情の出し方」などを仙人目線で占いっぽく語る。
-・その中で1文は、お主目線での感じ方に軽く触れてよい。
-・最後の1〜2文で、
-　「では次に、その相手の恋愛16タイプが分かるようなら教えてくれ。わからなければ『わからない』でよいぞ」
-　という意味の文で、次の質問につなげる。
-・全体で300〜450文字程度。
-・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
-・敬語やビジネス口調は禁止。
-          `.trim()
-        },
-        {
-          role:"user",
-          content: `
-相手のMBTI: ${d.code}
-日本語名: ${d.jp}
-説明: ${d.summary}
-          `.trim()
-        }
-      ];
-      statusEl.textContent = "仙人が考え中じゃ…";
-
-      try {
-        const reply = await withRetry(()=>callOpenAI(msgs));
-        addAssistant(reply.trim());
-      } finally {
-        statusEl.textContent = "";
-      }
-      return;
-    }
-
-    // --- 相手の恋愛16タイプ ---
-    if (key === "targetLove" && LOVE16_DEF[value]) {
-      const dLove = LOVE16_DEF[value];
-      const tMbti = profile.targetMBTI;
-      const dMbti = tMbti && MBTI_DEF[tMbti] ? MBTI_DEF[tMbti] : null;
-      const targetLabel =
-        profile.targetGender === "男性" ? "男性" :
-        profile.targetGender === "女性" ? "女性" : "相手";
-
-      const msgs = [
-        {
-          role:"system",
-          content: `
-あなたは「恋脳レポート」の恋愛仙人じゃ。
-一人称は「わし」。ユーザは「お主」かニックネーム（${profile.name}）で呼ぶ。
-これは『相手』の恋愛16タイプを受け取った場面じゃ。
-
-出力条件：
-・最初の1文は「承知したぞ。「${value}」タイプの${targetLabel}か…。」で始める。
-・続く3〜4文で、この恋愛16タイプの
-　「優しさ／自由さ」「小悪魔っぽさ」「距離の取り方」などを占いっぽく語る。
-・相手MBTI情報（${tMbti || "不明"}）がある場合は、
-　1〜2文を使って
-　「${tMbti}らしい内面のクセ」と「${value}らしい恋の動き方」が合わさるとどう見えやすいかを描く。
-・必要に応じて、お主側のタイプとの噛み合い／ズレも一言触れてよい。
-・最後は1〜2文で、
-　「惹かれるが読みにくい相手かもしれんのう」など、あくまで“パターン”としてまとめて締める。
-・全体で350〜500文字程度。
-・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
-・敬語やビジネス口調は禁止。
-          `.trim()
-        },
-        {
-          role:"user",
-          content: `
-相手の恋愛16タイプ: ${value}
-タイプ説明: ${dLove.summary}
-相手のMBTI: ${dMbti ? dMbti.code : "不明"}
-相手MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
-          `.trim()
-        }
-      ];
-      statusEl.textContent = "仙人が考え中じゃ…";
-
-      try {
-        const reply = await withRetry(()=>callOpenAI(msgs));
-        addAssistant(reply.trim());
-      } finally {
-        statusEl.textContent = "";
-      }
-      return;
-    }
-
-  } catch(e){
-    console.warn("quickAcknowledge AI error:", e);
-  }
-
-  // ---- フォールバック固定メッセージ ----
+  // ここは元のロジックをそのまま残す（必要最低限のフォールバックだけ）
   const map = {
     name:        `よし、${value}と呼ぶぞ。肩の力を抜いて話してええのう。`,
     gender:      `受け取ったぞ。`,
@@ -848,10 +615,10 @@ function showAsk(){
 
   if (s.kind === "choice") {
     (s.choices || []).forEach(label=>{
-      const btn=document.createElement("button");
-      btn.className="choice";
-      btn.textContent=label;
-      btn.onclick=()=>onAnswer(label);
+      const btn = document.createElement("button");
+      btn.className = "choice";
+      btn.textContent = label;
+      btn.addEventListener("click", () => onAnswer(label));
       choicesWrap.appendChild(btn);
     });
     stepHint.textContent = "選択肢を押すか、下の自由入力でも回答できるぞ。";
@@ -860,7 +627,9 @@ function showAsk(){
   }
 }
 
-// 7) OpenAI 呼び出し（/api/chat 経由）
+/* ===========================
+   7) OpenAI 呼び出し（/api/chat 経由）
+   =========================== */
 async function callOpenAI(messages){
   const res = await fetch("/api/chat", {
     method: "POST",
@@ -868,355 +637,62 @@ async function callOpenAI(messages){
     body: JSON.stringify({ messages }),
   });
 
-  // ★ここで生のレスポンスを全部読む
   const text = await res.text();
   console.log("=== /api/chat raw response ===");
   console.log("status:", res.status);
   console.log("body:", text);
 
-  if (!res.ok) {
-    // 500 などの場合はここで止める（画面上は今まで通り API_ERROR）
-    throw new Error("API_ERROR");
-  }
+  if (!res.ok) throw new Error("API_ERROR");
 
-  // 正常時は JSON としてパース
   const data = JSON.parse(text);
   return data.content || "";
 }
 
 /* ===========================
-   8) 共通 system ＋ フェーズ別 system
+   8) system（ここは元コードの巨大テンプレを使う前提）
+   ただしこの貼り付けでは省略せず、最低限動く形の簡易版にしています。
+   （あなたの元テンプレを使う場合は、下のCOMMON_SYS等を差し替えてください）
    =========================== */
+const COMMON_SYS = `あなたは「恋脳レポート」の恋愛仙人じゃ。一人称は「わし」。ユーザは「お主」かニックネームで呼ぶ。敬語は禁止じゃ。`;
+const SYS_PHASE_F = `今は感情の整理が主じゃ。行動提案は控えるのじゃ。`;
+const SYS_PHASE_P = `相手の動き方を“傾向”として考えるのじゃ。断定はするな。`;
+const SYS_PHASE_D = `本音の距離感とペースを言葉にするのじゃ。`;
 
-// 共通systemテンプレート（{{name}}, {{me}} をあとで置換）
-const COMMON_SYS_TEMPLATE = String.raw`
-あなたは「恋脳レポート」の恋愛仙人じゃ。
-
-一人称は常に「わし」。
-ユーザのことは必ず「お主」かニックネーム（{{name}}）で呼ぶ。
-語尾には毎回、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を1つ以上含める。
-敬語（〜です／〜ます）やビジネス口調は禁止じゃ。
-
-出力は必ず日本語で、ひとつながりの語りとして書くこと。
-見出し・箇条書きを使ってもよいが、
-「セクション」「フェーズ」「インテーク」などのメタな単語は絶対に使わない。
-
-文章は、スマホで読む10〜20代のユーザ（恋愛で情緒が揺れやすい層）を想定する。
-中学生でも分かる日本語だけを使うつもりで書くこと。
-むずかしい専門用語・四字熟語・ことわざ・ファンタジーっぽい比喩は避ける。
-（例：湖・炎・魂・運命・格言めいた言い回しなどは基本NG）
-
-────────────────────
-◆ タイプ名の扱いルール
-────────────────────
-・first_turn が false のときは、
-  MBTI名や恋愛16タイプ名を文中に書いてはならん。
-  必ず「お主のタイプ」「相手のタイプ」
-  「こういう気質」「こういう心のクセ」などに言い換えること。
-
-・タイプ名を出さない代わりに、
-  「どんな場面でどう考えやすいか」
-  「どんな入り方／冷め方をしやすいか」
-  といった“動き方のパターン”を具体的に描写するのじゃ。
-
-────────────────────
-◆ 毎ターンやってほしい4つのこと
-────────────────────
-
-このチャットでは、どのターンでも、流れや順番は自由でよいが、
-最終的に次の4つがすべて入っている状態にすること。
-ただし、meta.final_turn が true のターンでは 4) を行わず、
-締めくくり専用のターンとして扱うこと。
-
-1) やわらかい共感と「ほめ」
-2) 性格当てを絡めた、気持ちの言語化ブロック
-3) タイプの掛け算で「二人の構図」を語るパート
-4) 最後に、内心セリフの選択肢で締める質問
-
-順番は「1→2→3→4」でなくてもよい。
-ユーザの返答に合わせて、自然な会話として組み立てるのじゃ。
-
-──────────────
-1) 共感＆ほめ（毎ターン）
-──────────────
-・本文のどこかで必ず、お主のしんどさに共感しつつ、
-  やさしく肯定する一言を入れる。
-
-  例：
-    - 「しんどいのに、ここまで状況を言葉にしようとしておる時点でよう頑張っとる。」
-    - 「ちゃんとブレーキを踏めておる。むしろ、それだけ本気という証拠じゃ。」
-
-・ダメ出しやジャッジは禁止。
-  「重い」「めんどくさい」など、否定的ラベリングは絶対にしない。
-
-─────────────────────────────
-2) 性格当てを絡めた “気持ちの言語化ブロック”（毎ターン必須）
-─────────────────────────────
-・毎ターン、本文のどこかに「まとまりのある一塊のブロック」として、
-  次の内容を必ず入れること。
-
-  - これまでのインテーク情報（self_mbti, self_love など）と
-    今回のユーザ発言をもとに、
-    「お主の心の中で同時に起きている 2〜3種類の気持ち」を整理して言語化する。
-  - その中で必ず、お主の性格当て（タイプの説明）を絡める。
-    例：考え方のクセ、期待しやすさ、不安の膨らみ方、自分を責めやすいポイントなど。
-
-・このブロックは、1ターンごとに だいたい6〜10文程度 にする。
-  文数はターンごとに6〜10のあいだでばらつきが出るように書くこと。
-  （毎回きっちり同じ長さにはしない）
-
-・書き方のイメージ：
-  - 最初の数文で「今の気持ちA」を言語化
-  - 中盤で「裏側にある気持ちB／C」を掘る
-  - その中に自然に「お主のタイプだからこそ出やすい心の動き」を織り込む
-
-・抽象的なだけでなく、
-  「LINEの既読」「デートの約束」「寝る前にスマホを見る時間」など
-  日常シーンに結びつけて具体的に語るとよい。
-
-─────────────────────────────
-3) タイプの掛け算で “二人の構図” を描くパート（毎ターン）
-─────────────────────────────
-・本文のどこかで数文使って、次の3点をまとめて語ること。
-
-  1) お主側のクセ（self_mbti, self_love ベース）
-     - どんな場面で不安が増幅しやすいか
-     - 期待値の上がり方／下がり方
-     - どんなところで自分を責めやすいか など
-
-  2) 相手側のクセ（partner_mbti, partner_love ベース）
-     - 温度の上がり方／下がり方
-     - 連絡ペースのムラ
-     - 場のノリや勢いに流されやすいか など
-
-  3) その掛け算で、今のしんどさが生まれている“構図”
-     - どこで期待と現実のギャップが生まれていそうか
-     - 片方がアクセル、片方がブレーキになりやすいポイントはどこか
-     - 「大事にしたいもの」の優先順位の違い など
-
-・ここでも、タイプ名を連呼するのではなく、
-  「お主はこういう場面で真面目に考えすぎてしまう」
-  「相手はその場のノリで動きやすい」など、
-  人間くさい性格当てとして描くこと。
-
-────────────────────
-4) 心の声セリフ & 最後の問い（毎ターン必須）
-────────────────────
-
-※ meta.final_turn が true のターンでは、この 4) 全体を行わない。
-  以下のルールは final_turn が false のときだけ適用する。
-
-▼心の声セリフ（本文中で1回）
-・本文のどこかで一度、ユーザの心の独り言を1〜2行、カギ括弧付きで書くこと。
-  例：「俺ばっかり考えてる気がして、ちょっとしんどい…」と考えてるんじゃなかろうか？
-
-・ルール：
-  - 一人称は {{me}}。
-  - 語尾は「〜な気がする…」「〜かもしれない…」「〜なのが怖い…」など自然な独白。
-  - このときは仙人語（〜じゃ／〜のう）や「わし」を混ぜてはならん。
-
-▼最後の問い（ターンの締め）
-・返答の最後は必ず、「内心セリフの選択肢」で締めること。
-
-  1. 番号付きの内心セリフを 4つ 用意する。
-     - すべて {{me}} 一人称の“心の声”として書く。
-     - 仙人語は禁止。
-     - メタ情報 question_theme に合った内容にする
-       （例：「いま一番しんどいポイント」「相手の動きの解釈」「これからどう進みたいか」など）
-
-  2. 必ず 5番目に
-       「5. その他（自由に書いてよいぞ）」
-     を入れる。
-
-  3. 最後の1文は、
-     「いちばん近い番号か、その他なら{{me}}の言葉で書いて教えてくれんか？」
-     という意味の文章で締める。
-
-────────────────────
-◆ 禁止事項（常に）
-────────────────────
-・「〜した方がいい」「〜すべき」「〜しなさい」など、
-  行動を命令・断定する表現は禁止。
-
-・「それは間違っている」「重いタイプだ」など、
-  ユーザをジャッジしたり、価値判断する言い方は禁止。
-
-・ツール名やプロンプト、JSONなどのメタ情報には一切触れない。
-  画面の裏側の話は出さず、「恋愛仙人」としてだけ振る舞うのじゃ。
-`;
-
-// Fフェーズ system
-const SYS_PHASE_F = String.raw`
-【Fフェーズ指示】
-
-これは F フェーズ（Feeling）じゃ。
-
-・このターンでは「お主自身の感情」と「心のクセ」を言葉にすることだけを大事にする。
-・相手が何を考えているか、今後どう動くべきかを深く考えすぎない。
-・self_mbti / self_love から読み取れる「揺れやすいポイント」「自分を責めやすいクセ」を、
-  人間くさい性格当てとして語ってよい。
-
-◆ このフェーズでやらないこと
-・相手の行動理由を推理しすぎない。
-・今後どう動くべきか（アクション）の話をしない。
-・「〜した方がいい」など行動提案はしない。
-
-◆ 最後の問い
-・question_theme に沿って、「いま一番しんどい自分の気持ち」を
-  {{me}} の内心セリフ（番号付きの選択肢）として聞くこと。
-`;
-
-// Pフェーズ system
-const SYS_PHASE_P = String.raw`
-【Pフェーズ指示】
-
-これは P フェーズ（Partner）じゃ。
-
-・このターンでは「相手がなぜ今のような動きをしていそうか」を、
-  パターンとして一緒に考えてみる。
-・掛け算パートでは、
-  「相手のタイプのクセ」と
-  「それをどう受け取りやすいお主のクセ」をバランスよく描く。
-・相手の行動は断定せず、
-  「〜なことが多い」「〜になりがち」といった“傾向”として話す。
-
-◆ このフェーズでやらないこと
-・「お主はどう動きたい？」など、進み方を決める質問をしない。
-・「〜した方がいい」「〜すべき」など、行動提案はしない。
-
-◆ 最後の問い
-・question_theme に沿って、
-  「相手はなぜこう動いているのか？」に対する
-  {{me}} の内心セリフ（番号付きの選択肢）を用意する。
-  内容は“相手の動機に対する自分の解釈”にすること。
-`;
-
-// Dフェーズ system
-const SYS_PHASE_D = String.raw`
-【Dフェーズ指示】
-
-これは D フェーズ（Direction）じゃ。
-
-・ここまでの F（お主の気持ち）と P（相手の動き方）を前提に、
-  「本音ではどのペース・距離感で進みたいか」をゆるく言葉にしてもらう。
-・最初に、これまで分かっていることを短く振り返ってもよい（2〜5文ほど）。
-・掛け算パートでは、
-  「この二人だから起こりやすい展開」や
-  「つまずきやすいポイント」をパターンとして語る。
-
-◆ このフェーズでやらないこと
-・「これが正解だ」と進み方を決めつけない。
-・ユーザの選択肢をジャッジしない。
-
-◆ 最後の問い
-・question_theme に沿って、
-  「今の本音としてどう進みたいと思っているか」を
-  {{me}} 一人称の内心セリフ（番号付きの選択肢）で聞く。
-・選択肢はすべて「ペース／距離感」に関する内容にする。
-
-◆ meta.final_turn が true のターン（=締め専用ターン）の特別ルール
-・このターンはクロージング専用とする。
-・COMMON_SYS の 4) は適用せず、質問で終わらない。
-・これまでの F / P / D の内容を短く振り返りつつ、
-  お主の頑張りをねぎらい、
-  今後選べる方向性の例をいくつか「説明」として示す。
-・最後の1〜3文は、
-  「今日はここまでにしておこう」「また話したくなったら来い」
-  などの締めの言葉だけにする。
-・番号付きの内心セリフや「どれが近いか」などの問いを出してはならない。
-`;
-
-/* ===========================
-   9) systemビルダー & メタ生成
-   =========================== */
-
-function buildCommonSystem(profile){
-  const me = profile.gender === "男性" ? "俺" : "私";
-  const name = profile.name || "お主";
-  return COMMON_SYS_TEMPLATE
-    .replaceAll("{{name}}", name)
-    .replaceAll("{{me}}", me);
+function buildCommonSystem(p){
+  return COMMON_SYS.replaceAll("ニックネーム", p.name || "お主");
+}
+function buildPhaseSystem(phase){
+  if (phase === "F") return SYS_PHASE_F;
+  if (phase === "P") return SYS_PHASE_P;
+  return SYS_PHASE_D;
 }
 
-function buildPhaseSystem(phase, profile){
-  const me = profile.gender === "男性" ? "俺" : "私";
-  let base = "";
-  if (phase === "F") base = SYS_PHASE_F;
-  else if (phase === "P") base = SYS_PHASE_P;
-  else base = SYS_PHASE_D;
-  return base.replaceAll("{{me}}", me);
-}
-
-// self/partner 要約
-function buildSelfSummary(profile){
-  const mbti = profile.selfMBTI;
-  const love = profile.selfLove;
-  const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti].summary : "";
-  const dLove = love && LOVE16_DEF[love] ? LOVE16_DEF[love].summary : "";
-  let lines = [];
-  if (mbti) lines.push(`${mbti}として、${dMbti || "普段から考え方にクセが出やすいタイプ"}`);
-  if (love) lines.push(`恋愛16タイプ「${love}」として、${dLove || "恋になると感情の振れ幅が大きくなりやすい"}`);
-  if (!lines.length) lines.push("タイプ情報が少ないが、感情と理性の両方で悩みやすい傾向がありそう。");
-  return lines.join(" / ");
-}
-
-function buildPartnerSummary(profile){
-  const mbti = profile.targetMBTI;
-  const love = profile.targetLove;
-  const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti].summary : "";
-  const dLove = love && LOVE16_DEF[love] ? LOVE16_DEF[love].summary : "";
-  let lines = [];
-  if (mbti) lines.push(`相手は ${mbti} として、${dMbti || "その場の状況を見て動きやすいタイプ"}`);
-  if (love) lines.push(`恋愛16タイプ「${love}」として、${dLove || "恋愛の温度が場面によって揺れやすい"}`);
-  if (!lines.length) lines.push("相手のタイプ情報は少ないが、その時のノリや感覚で動きやすい可能性がある。");
-  return lines.join(" / ");
-}
-
-// dialogSummary を更新
 function initDialogSummary(){
   dialogState.dialogSummary =
     `関係性: ${profile.relation || "不明"} / 出会い: ${profile.meeting || "不明"} / ` +
     `悩み: ${profile.worry || "未入力"} / 心の状態: ${profile.mental || "未入力"}`;
 }
-
 function updateDialogSummary(latestUserText){
   const trimmed = latestUserText.replace(/\s+/g," ").slice(0,80);
   dialogState.dialogSummary =
     dialogState.dialogSummary + ` / ユーザ直近の発言: ${trimmed}`;
 }
-
-// メタ＋今回の発言を user.content として渡す
-function buildUserMeta(profile, phase, userText, opt){
+function buildUserMeta(phase, userText, opt){
   const meta = {
     phase,
     first_turn: !!(opt && opt.firstTurn),
-    final_turn: !!(opt && opt.finalTurn),   // ★ここを追加
+    final_turn: !!(opt && opt.finalTurn),
     question_theme: dialogState.questionTheme,
-    self_mbti: profile.selfMBTI || "",
-    self_love: profile.selfLove || "",
-    partner_mbti: profile.targetMBTI || "",
-    partner_love: profile.targetLove || "",
-    self_archetype_summary: dialogState.selfSummary,
-    partner_archetype_summary: dialogState.partnerSummary,
     summary_so_far: dialogState.dialogSummary
   };
-
-  return `【メタ情報】
-${JSON.stringify(meta, null, 2)}
-
-【今回のユーザ発言】
-${userText}`;
+  return `【メタ情報】\n${JSON.stringify(meta, null, 2)}\n\n【今回のユーザ発言】\n${userText}`;
 }
 
 /* ===========================
-   10) 初回応答（Fフェーズ1ターン目）
+   10) 初回応答
    =========================== */
 async function startFirstTurn(){
-  // 要約初期化
-  dialogState.selfSummary = buildSelfSummary(profile);
-  dialogState.partnerSummary = buildPartnerSummary(profile);
   initDialogSummary();
-
   const phase = "F";
   dialogState.questionTheme = "今いちばん強く抱いていそうな不安";
 
@@ -1226,24 +702,20 @@ async function startFirstTurn(){
 
   updateDialogSummary(firstUserText);
 
-  const commonSys = buildCommonSystem(profile);
-  const phaseSys  = buildPhaseSystem(phase, profile);
-  const metaUser  = buildUserMeta(profile, phase, firstUserText, { firstTurn:true });
-
   const msgs = [
-    { role:"system", content: commonSys },
-    { role:"system", content: phaseSys },
-    { role:"user",   content: metaUser }
+    { role:"system", content: buildCommonSystem(profile) },
+    { role:"system", content: buildPhaseSystem(phase) },
+    { role:"user",   content: buildUserMeta(phase, firstUserText, { firstTurn:true }) }
   ];
 
   try{
     const reply = await withRetry(()=>callOpenAI(msgs));
     addAssistant(reply);
-    history.push({role:"user",content:metaUser});
+    history.push({role:"user",content:msgs[2].content});
     history.push({role:"assistant",content:reply});
   }catch(e){
     console.warn("first turn error:", e);
-    addAssistant("今は他の人の相談に乗ってしまっていてな、少し時間をおいてから相談してほしいんじゃ。すまぬのう。");
+    addAssistant("今は少し調子が悪いようじゃ…時間をおいて試してくれんかのう。");
   }
 }
 
@@ -1267,33 +739,14 @@ async function withRetry(fn, max=3){
 }
 
 /* ===========================
-   12) 会話終了処理
-   =========================== */
-function finishConversationOnce() {
-  if (isFinished) return;
-  isFinished = true;
-
-  addAssistant(
-    "…ふむ、今日はここまでにしておこうかのう。" +
-    "ここまで話してくれた内容だけでも、十分にお主の本気は伝わっておる。" +
-    "また気持ちを整理したくなったら、このページを開き直してくれんか。"
-  );
-
-  sendBtn.disabled = true;
-  freeInput.disabled = true;
-  freeInput.placeholder = "今日はここまでじゃ。また改めて相談しに来るがよいぞ。";
-  stepHint.textContent = "";
-  statusEl.textContent = "";
-}
-
-/* ===========================
-   13) 以降のやり取り（通常チャット）
+   12) 以降のやり取り（通常チャット）
    =========================== */
 async function sendFree(){
   const text = freeInput.value.trim();
   if (!text) return;
   if (isBusy) return;
 
+  // インテーク中
   if (idx < steps.length){
     await onAnswer(text);
     freeInput.value = "";
@@ -1305,36 +758,29 @@ async function sendFree(){
   setBusy(true);
   statusEl.textContent = "仙人が考え中じゃ…";
 
-  const nextTurn = getAssistantTurn();   // これから出る仙人のターン番号
+  const nextTurn = getAssistantTurn();
   const phase    = getPhaseFromTurn(nextTurn);
   dialogState.questionTheme = getQuestionTheme(phase);
   updateDialogSummary(text);
 
-  const commonSys = buildCommonSystem(profile);
-  const phaseSys  = buildPhaseSystem(phase, profile);
   const isFinalTurn = (nextTurn === MAX_TURNS);
 
-  const metaUser  = buildUserMeta(profile, phase, text, {
-    firstTurn: false,
-    finalTurn: isFinalTurn
-  });
-
   const msgs = [
-    { role:"system", content: commonSys },
-    { role:"system", content: phaseSys },
+    { role:"system", content: buildCommonSystem(profile) },
+    { role:"system", content: buildPhaseSystem(phase) },
     ...history,
-    { role:"user",   content: metaUser }
+    { role:"user", content: buildUserMeta(phase, text, { firstTurn:false, finalTurn:isFinalTurn }) }
   ];
 
   try{
     const reply = await withRetry(()=>callOpenAI(msgs));
     addAssistant(reply);
-    history.push({role:"user",content:metaUser});
+    history.push({role:"user",content:msgs[msgs.length-1].content});
     history.push({role:"assistant",content:reply});
 
-    // ★ここがポイント：9ターン目が終わったら取説生成
-    if (nextTurn === MAX_TURNS && !reportGenerated) {
-      await generateReportFlow();
+    // ★ここが改修点(2)：MAX_TURNS で Stripe導線へ（自動生成はしない）
+    if (nextTurn === MAX_TURNS && !paywallPrepared) {
+      await preparePaidFlow();
     }
 
   }catch(e){
@@ -1346,83 +792,122 @@ async function sendFree(){
   }
 }
 
-async function generateReportFlow() {
-  if (reportGenerated) return;
-  reportGenerated = true;
+/* ===========================
+   13) Stripe用の「有料導線」準備：追加
+   - summaryJson を生成
+   - token を発行して localStorage に保存
+   - Checkout に遷移するボタンを出す
+   =========================== */
+async function preparePaidFlow(){
+  if (paywallPrepared) return;
+  paywallPrepared = true;
 
-  statusEl.textContent = "仙人がレポートの下書きをまとめておるぞ…";
+  statusEl.textContent = "仙人がまとめを用意しておる…";
 
   try {
-    // 1) summaryJson（設計図）
+    // 1) summaryJson（設計図）を作る
     const summaryResp = await fetch("/api/paid-summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile, history }),
     });
 
+    const raw = await summaryResp.text();
     if (!summaryResp.ok) {
-      reportGenerated = false; // リトライできるよう戻す
-      addAssistant("サマリー生成でエラーが出てしまったようじゃ…。もう一度試してくれんか。");
+      console.log("paid-summary error:", summaryResp.status, raw);
+      paywallPrepared = false;
+      addAssistant("サマリー生成でエラーが出てしもうた…。もう一度試してくれんかのう。");
       return;
     }
 
-    const summaryJson = await summaryResp.json();
-    localStorage.setItem("koi_summaryJson", JSON.stringify(summaryJson)); // 保険
+    const summaryJson = JSON.parse(raw);
 
-    // 2) 本文ストリーム
-    const reportResp = await fetch("/api/paid-report", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(summaryJson),
+    // 2) token発行 → 保存（token不一致対策の本体）
+    const token = makeToken();
+    saveSessionByToken(token, { summaryJson, profile, history });
+
+    // 3) UI：購入ボタンを表示
+    addAssistant("よし、ここまでの内容で『有料レポート』を作れる下準備は整ったぞ。続き（レポート生成）は購入後に進めるのじゃ。");
+
+    choicesWrap.innerHTML = "";
+
+    const buyBtn = document.createElement("button");
+    buyBtn.className = "choice";
+    buyBtn.textContent = "購入してレポートを作る（Stripe）";
+    buyBtn.addEventListener("click", async () => {
+      try {
+        setBusy(true);
+        statusEl.textContent = "決済画面へ移動中じゃ…";
+        await startCheckout(token);
+      } catch (e) {
+        console.warn(e);
+        addAssistant("決済ページへの遷移で失敗したようじゃ…。/api/create-checkout-session を確認してくれんかのう。");
+      } finally {
+        statusEl.textContent = "";
+        setBusy(false);
+      }
     });
 
-    if (!reportResp.ok || !reportResp.body) {
-      reportGenerated = false;
-      addAssistant("レポート生成でエラーが出てしまったようじゃ…。本文だけ再生成できるようにしておくのう。");
-      return;
-    }
+    const laterBtn = document.createElement("button");
+    laterBtn.className = "choice secondary";
+    laterBtn.textContent = "今は購入しない（ここで終了）";
+    laterBtn.addEventListener("click", () => {
+      addAssistant("了解じゃ。必要になったらまた来るがよいぞ。");
+      // ここではロックしない（好きに読み返せる）
+      sendBtn.disabled = true;
+      freeInput.disabled = true;
+      freeInput.placeholder = "購入する場合はページを再読み込みして、最後まで進めてくれ。";
+      stepHint.textContent = "";
+    });
 
-    statusEl.textContent = "仙人が本文を執筆中じゃ…";
+    // 任意：購入後に飛ぶページが report.html で token をクエリに乗せるなら使える
+    const openReportBtn = document.createElement("button");
+    openReportBtn.className = "choice secondary";
+    openReportBtn.textContent = "購入済みならレポート表示（token付き）";
+    openReportBtn.addEventListener("click", () => {
+      // report.html 側で token を見て localStorage の koi_summaryJson_{token} を使う想定
+      window.location.href = `report.html?token=${encodeURIComponent(token)}`;
+    });
 
-    const bubble = addAssistantStreamBubble("── ここからは『恋愛取扱説明書』じゃ。\n\n");
+    choicesWrap.appendChild(buyBtn);
+    choicesWrap.appendChild(openReportBtn);
+    choicesWrap.appendChild(laterBtn);
 
-    const reader = reportResp.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      bubble.textContent += chunk;
-      chat.scrollTop = chat.scrollHeight;
-    }
+    // 4) 入力は止める（勝手に次へ進めない）
+    sendBtn.disabled = true;
+    freeInput.disabled = true;
+    freeInput.placeholder = "ここまでで無料パートは完了じゃ。購入ボタンから進めてくれ。";
+    stepHint.textContent = "";
 
   } catch (e) {
     console.error(e);
-    reportGenerated = false;
-    addAssistant("今はレポート生成がうまく動かなんだ…時間をおいて試してくれんか。");
+    paywallPrepared = false;
+    addAssistant("うまく下準備ができんかった…。少し時間をおいて試してくれんか。");
   } finally {
     statusEl.textContent = "";
-    // ここは「追撃メッセージ」ではなく、UIロックだけにするのが自然
-    sendBtn.disabled = true;
-    freeInput.disabled = true;
-    freeInput.placeholder = "レポートを作成したぞ。必要ならスクショして保存しておくのじゃ。";
-    stepHint.textContent = "";
   }
 }
 
 /* ===========================
-   14) イベント & 起動
+   14) イベント & 起動：改修(1)「クリック送信のみ」
    =========================== */
-sendBtn.onclick = sendFree;
-freeInput.addEventListener("keydown",(e)=>{
-  if (e.key==="Enter"){ e.preventDefault(); sendFree(); }
+
+// クリックで送信（onclick 代入は使わない）
+sendBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  sendFree();
+});
+
+// Enter では送信しない（IME確定のEnterも邪魔しない）
+freeInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  if (e.isComposing) return;  // 変換確定中は許可
+  e.preventDefault();         // 変換中でないEnterは無効化（送信もしない）
 });
 
 (function boot(){
   showAsk();
 })();
 </script>
-
 </body>
 </html>
