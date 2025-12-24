@@ -1316,7 +1316,7 @@ function showPayCTA(token) {
 
   addAssistant(
     "無料版はここまでじゃ。\n" +
-    "……じゃが本当は、\n" +
+    "……じゃが本当は、】【" +
     "・お主の心が揺れる“引き金”の地図\n" +
     "・二人の構図（アクセルとブレーキの噛み合わせ）\n" +
     "・復縁寄せ／距離を置く寄せの意思決定\n" +
@@ -1329,15 +1329,13 @@ function showPayCTA(token) {
   const btn = document.createElement("button");
   btn.className = "choice";
   btn.textContent = "完全版を¥480で受け取る";
-  btn.onclick = () => startCheckout(token, btn);  // ★tokenを渡す
+  btn.onclick = () => startCheckout(token, btn); // ★同じtokenを渡す
   choicesWrap.appendChild(btn);
 
   const btn2 = document.createElement("button");
   btn2.className = "choice secondary";
   btn2.textContent = "いったん考える（閉じる）";
-  btn2.onclick = () => {
-    addAssistant("うむ。焦らんでええ。また必要になったら来い。");
-  };
+  btn2.onclick = () => addAssistant("うむ。焦らんでええ。また必要になったら来い。");
   choicesWrap.appendChild(btn2);
 }
 
@@ -1347,23 +1345,19 @@ async function startCheckout(token, btn) {
     statusEl.textContent = "決済画面へ案内中じゃ…";
     if (btn) btn.disabled = true;
 
-    // token一元化：引数 > localStorage > 生成 の順
-    const t = token || localStorage.getItem("koi_token") || getOrCreateToken();
-    localStorage.setItem("koi_token", t);
-
-    // token紐づけで復元用に複製（既存設計を維持）
+    // ★保険：token紐づけの複製（成功/失敗ページ復元用）
     const summary = localStorage.getItem("koi_summaryJson");
     const prof    = localStorage.getItem("koi_profile");
     const hist    = localStorage.getItem("koi_history");
-    if (summary) localStorage.setItem(`koi_summaryJson_${t}`, summary);
-    if (prof)    localStorage.setItem(`koi_profile_${t}`, prof);
-    if (hist)    localStorage.setItem(`koi_history_${t}`, hist);
+    if (summary) localStorage.setItem(`koi_summaryJson_${token}`, summary);
+    if (prof)    localStorage.setItem(`koi_profile_${token}`, prof);
+    if (hist)    localStorage.setItem(`koi_history_${token}`, hist);
 
-    // サーバが期待する { token } を送る
+    // ★サーバが期待する token をそのまま送る（ズレを根絶）
     const res = await fetch("/api/create-checkout-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: t }),
+      body: JSON.stringify({ token }),
     });
 
     const dataText = await res.text();
@@ -1389,23 +1383,27 @@ async function startCheckout(token, btn) {
    14) イベント & 起動
    =========================== */
 
-// クリックのみ送信
-sendBtn.addEventListener("click", (e) => {
+// 送信はクリックのみ（sendFree内はasyncなので awaitして例外も拾う）
+sendBtn.addEventListener("click", async (e) => {
   e.preventDefault();
-  sendFree();
+  try {
+    await sendFree();
+  } catch (err) {
+    console.error("sendFree failed:", err);
+  }
 });
 
-// Enterキーでは送信しない（IME変換確定は邪魔しない）
+// Enterキーでは送信しない（IME確定は邪魔しない）
 freeInput.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
-  if (e.isComposing) return;
-  e.preventDefault();
+  if (e.isComposing) return;   // IME確定中は触らない
+  e.preventDefault();          // 変換中でないEnterだけ無効化
 });
 
 (function boot(){
   showAsk();
 })();
-
 </script>
 </body>
 </html>
+
