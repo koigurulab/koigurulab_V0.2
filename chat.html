@@ -1556,23 +1556,21 @@ async function startCheckout() {
    =========================== */
 sendBtn.onclick = sendFree;
 
-// Enterキーで送信しない（IME確定のため）
+// Enterキーでは送信しない（IME確定にも邪魔しない）
 freeInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
-    // 送信はしない。IMEの確定はブラウザ側で通常通り動きます。
-    //（preventDefaultも不要）
+    // Enterで送信しない。フォーム送信等の既定挙動だけ止める。
+    e.preventDefault();
     return;
   }
-});
-
 });
 
 (function boot(){
   showAsk();
 })();
-</script>
 
 </body>
 </html>
+
 
 
