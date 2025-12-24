@@ -1483,6 +1483,14 @@ async function generateReportFlow() {
     "まで、一本の道しるべとして渡せるんじゃ。\n" +
     "必要なら、完全版を作ってやろうかのう。"
   );
+    function createCheckoutToken() {
+  // できるだけ衝突しにくい token を発行（MVP最小）
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+  // 古い環境向けフォールバック
+  return `tok_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
 
   // CTAボタン
   const btn = document.createElement("button");
@@ -1501,28 +1509,35 @@ async function generateReportFlow() {
   choicesWrap.appendChild(btn2);
 }
 
-async function startCheckout(token, btnEl) {
+async function startCheckout() {
   try {
-    if (!token || typeof token !== "string") {
-      addAssistant("すまぬ、決済用の合言葉（token）が見当たらんのう。ページを開き直してもう一度試してくれ。");
-      return;
-    }
-
-    if (btnEl) btnEl.disabled = true;
     statusEl.textContent = "決済画面へ案内中じゃ…";
 
+    // ★追加：token を発行して保存
+    const token = createCheckoutToken();
+    localStorage.setItem("koi_checkout_token", token);
+
+    // ★追加：成功/失敗ページで token から復元できるよう、token紐づけで複製（最小の保険）
+    const summary = localStorage.getItem("koi_summaryJson");
+    const prof    = localStorage.getItem("koi_profile");
+    const hist    = localStorage.getItem("koi_history");
+    if (summary) localStorage.setItem(`koi_summaryJson_${token}`, summary);
+    if (prof)    localStorage.setItem(`koi_profile_${token}`, prof);
+    if (hist)    localStorage.setItem(`koi_history_${token}`, hist);
+
+    // ★修正：サーバが期待する { token } を送る
     const res = await fetch("/api/create-checkout-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      console.error("checkout error:", data);
-      throw new Error(data?.error || "checkout_error");
-    }
+    const dataText = await res.text();
+    if (!res.ok) throw new Error(dataText || "checkout_error");
 
+    const data = JSON.parse(dataText);
+
+    // create-checkout-session が { url } を返す想定
     if (data.url) {
       window.location.href = data.url;
       return;
@@ -1532,12 +1547,10 @@ async function startCheckout(token, btnEl) {
   } catch (e) {
     console.error(e);
     addAssistant("すまぬ、決済画面への案内で詰まったのう。時間をおいてもう一度押してくれ。");
-    if (btnEl) btnEl.disabled = false;
   } finally {
     statusEl.textContent = "";
   }
 }
-
 /* ===========================
    14) イベント & 起動
    =========================== */
@@ -1561,4 +1574,5 @@ freeInput.addEventListener("keydown", (e) => {
 
 </body>
 </html>
+
 
