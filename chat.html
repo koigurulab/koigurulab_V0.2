@@ -401,6 +401,14 @@ function addUser(text){
 }
 
 /* ===========================
+   ★追加：token生成（Checkoutのclient_reference_idと紐づけ）
+   =========================== */
+function makeToken() {
+  if (window.crypto?.randomUUID) return crypto.randomUUID();
+  return "tok_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+/* ===========================
    2) 選択肢 & タイプ定義
    =========================== */
 const MBTI_LIST = [
@@ -1372,7 +1380,14 @@ async function generateReportFlow() {
 
     const summaryJson = await summaryResp.json();
 
-    // localStorage に保存（成功ページで使う／MVPの簡易永続化）
+    /* ★変更：tokenを生成して、token紐づけでlocalStorageに保存 */
+    const token = makeToken();
+    localStorage.setItem("koi_token", token);
+    localStorage.setItem(`koi_summaryJson_${token}`, JSON.stringify(summaryJson));
+    localStorage.setItem(`koi_profile_${token}`, JSON.stringify(profile));
+    localStorage.setItem(`koi_history_${token}`, JSON.stringify(history));
+
+    // （互換用：残しておいても害はない）
     localStorage.setItem("koi_summaryJson", JSON.stringify(summaryJson));
     localStorage.setItem("koi_profile", JSON.stringify(profile));
     localStorage.setItem("koi_history", JSON.stringify(history));
@@ -1383,8 +1398,8 @@ async function generateReportFlow() {
     // 3) 無料版（占い3つ）を /api/chat で生成して表示
     await generateFreePreview(summaryJson);
 
-    // 4) 課金文言＋CTAボタンを表示（ここが最重要）
-    showPayCTA();
+    // 4) 課金文言＋CTAボタンを表示（tokenを渡す）
+    showPayCTA(token);
 
   } catch (e) {
     console.error(e);
@@ -1452,7 +1467,7 @@ async function generateReportFlow() {
     statusEl.textContent = "";
   }
 }
-  function showPayCTA() {
+  function showPayCTA(token) {
   // 既存の選択肢欄をCTAに使う（UIを増やさず最短で骨格を通す）
   choicesWrap.innerHTML = "";
 
@@ -1473,7 +1488,7 @@ async function generateReportFlow() {
   const btn = document.createElement("button");
   btn.className = "choice"; // 既存スタイル流用
   btn.textContent = "完全版を¥480で受け取る";
-  btn.onclick = startCheckout;
+  btn.onclick = () => startCheckout(token, btn);
   choicesWrap.appendChild(btn);
 
   // 参考：キャンセル導線（任意）
@@ -1486,38 +1501,38 @@ async function generateReportFlow() {
   choicesWrap.appendChild(btn2);
 }
 
-async function startCheckout() {
+async function startCheckout(token, btnEl) {
   try {
+    if (!token || typeof token !== "string") {
+      addAssistant("すまぬ、決済用の合言葉（token）が見当たらんのう。ページを開き直してもう一度試してくれ。");
+      return;
+    }
+
+    if (btnEl) btnEl.disabled = true;
     statusEl.textContent = "決済画面へ案内中じゃ…";
+
     const res = await fetch("/api/create-checkout-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // server側が何も読まなくてもOKなように最低限だけ送る
-      body: JSON.stringify({
-        // 使わなくても害はない
-        purpose: "koinou_paid_report",
-        // 成功/キャンセルの戻り先がserver実装依存なら、ここは無視されてもOK
-        successPath: "/paid-success.html",
-        cancelPath: "/paid-cancel.html"
-      }),
+      body: JSON.stringify({ token }),
     });
 
-    const dataText = await res.text();
-    if (!res.ok) throw new Error(dataText || "checkout_error");
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("checkout error:", data);
+      throw new Error(data?.error || "checkout_error");
+    }
 
-    const data = JSON.parse(dataText);
-
-    // create-checkout-session が {url} を返す実装を想定（一般的）
     if (data.url) {
       window.location.href = data.url;
       return;
     }
 
-    // 万一 {sessionId} だけ返す実装だった場合の保険
     addAssistant("決済URLの取得に失敗したようじゃ…（urlが返ってこん）。/api/create-checkout-session の返却を確認してくれんか。");
   } catch (e) {
     console.error(e);
     addAssistant("すまぬ、決済画面への案内で詰まったのう。時間をおいてもう一度押してくれ。");
+    if (btnEl) btnEl.disabled = false;
   } finally {
     statusEl.textContent = "";
   }
@@ -1538,5 +1553,3 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
-
-
