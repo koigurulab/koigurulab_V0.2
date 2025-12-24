@@ -1,0 +1,91 @@
+<!-- /paid-success.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>完全版レポート生成</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; padding: 20px; line-height: 1.7; }
+    .box { max-width: 900px; margin: 0 auto; }
+    .status { padding: 12px 14px; background: #fff3f3; border: 1px solid #ffd1d1; border-radius: 10px; margin-bottom: 16px; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid #eee; padding: 14px; border-radius: 10px; }
+    button { padding: 10px 14px; border-radius: 10px; border: 0; background: #ff5a7a; color: white; font-weight: 700; cursor: pointer; }
+    a { color: #ff5a7a; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>完全版を生成中じゃ…</h1>
+    <div id="status" class="status">決済は完了したようじゃ。レポートを組み立てておるぞ。</div>
+    <pre id="out"></pre>
+
+    <div id="actions" style="display:none; margin-top:16px;">
+      <button id="retry">もう一度生成する</button>
+      <div style="margin-top:10px;">
+        <a href="/chat.html">チャットへ戻る</a>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  const qs = new URLSearchParams(location.search);
+  const token = qs.get("token");
+  const statusEl = document.getElementById("status");
+  const outEl = document.getElementById("out");
+  const actionsEl = document.getElementById("actions");
+  const retryBtn = document.getElementById("retry");
+
+  function loadSummary() {
+    if (!token) return null;
+    const key = `koiguru_paid_summary_${token}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  async function run() {
+    const summaryJson = loadSummary();
+    if (!summaryJson) {
+      statusEl.textContent =
+        "このブラウザにデータが見当たらん…。同じ端末・同じブラウザで開いておるか確認してくれ。";
+      actionsEl.style.display = "block";
+      return;
+    }
+
+    statusEl.textContent = "完全版を生成しておる…（ページは閉じずに待つのじゃ）";
+    outEl.textContent = "";
+
+    try {
+      const res = await fetch("/api/paid-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(summaryJson),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        outEl.textContent += decoder.decode(value, { stream: true });
+      }
+      statusEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
+    } catch (e) {
+      statusEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
+      outEl.textContent += "\n\n---\n[error]\n" + String(e);
+      actionsEl.style.display = "block";
+    }
+  }
+
+  retryBtn.addEventListener("click", run);
+  run();
+})();
+</script>
+</body>
+</html>
