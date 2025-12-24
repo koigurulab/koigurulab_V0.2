@@ -1383,14 +1383,12 @@ async function startCheckout(token, btn) {
    14) イベント & 起動
    =========================== */
 
-// 送信はクリックのみ（sendFree内はasyncなので awaitして例外も拾う）
-sendBtn.addEventListener("click", async (e) => {
+// 送信はクリックのみ（awaitは使わない）
+sendBtn.addEventListener("click", (e) => {
   e.preventDefault();
-  try {
-    await sendFree();
-  } catch (err) {
+  Promise.resolve(sendFree()).catch((err) => {
     console.error("sendFree failed:", err);
-  }
+  });
 });
 
 // Enterキーでは送信しない（IME確定は邪魔しない）
@@ -1406,4 +1404,5 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
