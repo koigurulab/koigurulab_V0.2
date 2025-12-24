@@ -345,7 +345,7 @@
           class="chat-input"
           placeholder="自由入力はこちら（選択肢がない時や補足に）。"
         />
-        <button id="send" type="button" class="chat-send-btn">送信</button>
+        <button id="send" class="chat-send-btn">送信</button>
       </div>
 
       <!-- ステータス表示 -->
@@ -398,25 +398,6 @@ function addUser(text){
   row.appendChild(b);
   chat.appendChild(row);
   chat.scrollTop=chat.scrollHeight;
-}
-
-/* ===========================
-   ★token生成（Checkoutのclient_reference_idと紐づけ）
-   =========================== */
-function makeToken() {
-  if (window.crypto?.randomUUID) return crypto.randomUUID();
-  return "tok_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-/* ★最小改修：tokenは常にこれで1本化 */
-function getOrCreateToken() {
-  const key = "koi_token";
-  let t = localStorage.getItem(key);
-  if (!t) {
-    t = makeToken();
-    localStorage.setItem(key, t);
-  }
-  return t;
 }
 
 /* ===========================
@@ -1285,7 +1266,6 @@ async function withRetry(fn, max=3){
   }
 }
 
-
 /* ===========================
    12) 会話終了処理
    =========================== */
@@ -1309,73 +1289,125 @@ function finishConversationOnce() {
 /* ===========================
    13) 以降のやり取り（通常チャット）
    =========================== */
-/* （中略：あなたの原文どおり） */
+async function sendFree(){
+  const text = freeInput.value.trim();
+  if (!text) return;
+  if (isBusy) return;
 
-function showPayCTA(token) {
-  choicesWrap.innerHTML = "";
+  if (idx < steps.length){
+    await onAnswer(text);
+    freeInput.value = "";
+    return;
+  }
 
-  addAssistant(
-    "無料版はここまでじゃ。\n" +
-    "……じゃが本当は、】【" +
-    "・お主の心が揺れる“引き金”の地図\n" +
-    "・二人の構図（アクセルとブレーキの噛み合わせ）\n" +
-    "・復縁寄せ／距離を置く寄せの意思決定\n" +
-    "・そのまま送れるLINE文案\n" +
-    "・今後のアクションプラン（複数）\n" +
-    "まで、一本の道しるべとして渡せるんじゃ。\n" +
-    "必要なら、完全版を作ってやろうかのう。"
-  );
+  addUser(text);
+  freeInput.value = "";
+  setBusy(true);
+  statusEl.textContent = "仙人が考え中じゃ…";
 
-  const btn = document.createElement("button");
-  btn.className = "choice";
-  btn.textContent = "完全版を¥480で受け取る";
-  btn.onclick = () => startCheckout(token, btn); // ★同じtokenを渡す
-  choicesWrap.appendChild(btn);
+  const nextTurn = getAssistantTurn();   // これから出る仙人のターン番号
+  const phase    = getPhaseFromTurn(nextTurn);
+  dialogState.questionTheme = getQuestionTheme(phase);
+  updateDialogSummary(text);
 
-  const btn2 = document.createElement("button");
-  btn2.className = "choice secondary";
-  btn2.textContent = "いったん考える（閉じる）";
-  btn2.onclick = () => addAssistant("うむ。焦らんでええ。また必要になったら来い。");
-  choicesWrap.appendChild(btn2);
+  const commonSys = buildCommonSystem(profile);
+  const phaseSys  = buildPhaseSystem(phase, profile);
+  const isFinalTurn = (nextTurn === MAX_TURNS);
+
+  const metaUser  = buildUserMeta(profile, phase, text, {
+    firstTurn: false,
+    finalTurn: isFinalTurn
+  });
+
+  const msgs = [
+    { role:"system", content: commonSys },
+    { role:"system", content: phaseSys },
+    ...history,
+    { role:"user",   content: metaUser }
+  ];
+
+  try{
+    const reply = await withRetry(()=>callOpenAI(msgs));
+    addAssistant(reply);
+    history.push({role:"user",content:metaUser});
+    history.push({role:"assistant",content:reply});
+
+    // ★ここがポイント：9ターン目が終わったら取説生成
+    if (nextTurn === MAX_TURNS && !reportGenerated) {
+      await generateReportFlow();
+    }
+
+  }catch(e){
+    console.warn("chat error:", e);
+    addAssistant("今は他の人の相談に乗っておってな、少し時間をおいてからもう一度頼むのじゃ。");
+  }finally{
+    statusEl.textContent = "";
+    setBusy(false);
+  }
 }
 
-/* ★最小改修：startCheckout は「渡された token」をそのまま使う */
-async function startCheckout(token, btn) {
+async function generateReportFlow() {
+  if (reportGenerated) return;
+  reportGenerated = true;
+
+  statusEl.textContent = "仙人がレポートの下書きをまとめておるぞ…";
+
   try {
-    statusEl.textContent = "決済画面へ案内中じゃ…";
-    if (btn) btn.disabled = true;
-
-    // ★保険：token紐づけの複製（成功/失敗ページ復元用）
-    const summary = localStorage.getItem("koi_summaryJson");
-    const prof    = localStorage.getItem("koi_profile");
-    const hist    = localStorage.getItem("koi_history");
-    if (summary) localStorage.setItem(`koi_summaryJson_${token}`, summary);
-    if (prof)    localStorage.setItem(`koi_profile_${token}`, prof);
-    if (hist)    localStorage.setItem(`koi_history_${token}`, hist);
-
-    // ★サーバが期待する token をそのまま送る（ズレを根絶）
-    const res = await fetch("/api/create-checkout-session", {
+    // 1) summaryJson（設計図）
+    const summaryResp = await fetch("/api/paid-summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ profile, history }),
     });
 
-    const dataText = await res.text();
-    if (!res.ok) throw new Error(dataText || "checkout_error");
-
-    const data = JSON.parse(dataText);
-    if (data.url) {
-      window.location.href = data.url;
+    if (!summaryResp.ok) {
+      reportGenerated = false; // リトライできるよう戻す
+      addAssistant("サマリー生成でエラーが出てしまったようじゃ…。もう一度試してくれんか。");
       return;
     }
 
-    addAssistant("決済URLの取得に失敗したようじゃ…（urlが返ってこん）。/api/create-checkout-session の返却を確認してくれんか。");
+    const summaryJson = await summaryResp.json();
+    localStorage.setItem("koi_summaryJson", JSON.stringify(summaryJson)); // 保険
+
+    // 2) 本文ストリーム
+    const reportResp = await fetch("/api/paid-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(summaryJson),
+    });
+
+    if (!reportResp.ok || !reportResp.body) {
+      reportGenerated = false;
+      addAssistant("レポート生成でエラーが出てしまったようじゃ…。本文だけ再生成できるようにしておくのう。");
+      return;
+    }
+
+    statusEl.textContent = "仙人が本文を執筆中じゃ…";
+
+    const bubble = addAssistantStreamBubble("── ここからは『恋愛取扱説明書』じゃ。\n\n");
+
+    const reader = reportResp.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      bubble.textContent += chunk;
+      chat.scrollTop = chat.scrollHeight;
+    }
+
   } catch (e) {
     console.error(e);
-    addAssistant("すまぬ、決済画面への案内で詰まったのう。時間をおいてもう一度押してくれ。");
+    reportGenerated = false;
+    addAssistant("今はレポート生成がうまく動かなんだ…時間をおいて試してくれんか。");
   } finally {
     statusEl.textContent = "";
-    if (btn) btn.disabled = false;
+    // ここは「追撃メッセージ」ではなく、UIロックだけにするのが自然
+    sendBtn.disabled = true;
+    freeInput.disabled = true;
+    freeInput.placeholder = "レポートを作成したぞ。必要ならスクショして保存しておくのじゃ。";
+    stepHint.textContent = "";
   }
 }
 
@@ -1394,5 +1426,3 @@ freeInput.addEventListener("keydown",(e)=>{
 
 </body>
 </html>
-
-
