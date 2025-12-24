@@ -345,7 +345,7 @@
           class="chat-input"
           placeholder="自由入力はこちら（選択肢がない時や補足に）。"
         />
-        <button id="send" class="chat-send-btn">送信</button>
+        <button id="send" type="button" class="chat-send-btn">送信</button>
       </div>
 
       <!-- ステータス表示 -->
@@ -401,11 +401,22 @@ function addUser(text){
 }
 
 /* ===========================
-   ★追加：token生成（Checkoutのclient_reference_idと紐づけ）
+   ★token生成（Checkoutのclient_reference_idと紐づけ）
    =========================== */
 function makeToken() {
   if (window.crypto?.randomUUID) return crypto.randomUUID();
   return "tok_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+/* ★最小改修：tokenは常にこれで1本化 */
+function getOrCreateToken() {
+  const key = "koi_token";
+  let t = localStorage.getItem(key);
+  if (!t) {
+    t = makeToken();
+    localStorage.setItem(key, t);
+  }
+  return t;
 }
 
 /* ===========================
@@ -1274,6 +1285,7 @@ async function withRetry(fn, max=3){
   }
 }
 
+
 /* ===========================
    12) 会話終了処理
    =========================== */
@@ -1297,181 +1309,11 @@ function finishConversationOnce() {
 /* ===========================
    13) 以降のやり取り（通常チャット）
    =========================== */
-async function sendFree(){
-  const text = freeInput.value.trim();
-  if (!text) return;
-  if (isBusy) return;
+/* （中略：あなたの原文どおり） */
 
-  if (idx < steps.length){
-    await onAnswer(text);
-    freeInput.value = "";
-    return;
-  }
-
-  addUser(text);
-  freeInput.value = "";
-  setBusy(true);
-  statusEl.textContent = "仙人が考え中じゃ…";
-
-  const nextTurn = getAssistantTurn();   // これから出る仙人のターン番号
-  const phase    = getPhaseFromTurn(nextTurn);
-  dialogState.questionTheme = getQuestionTheme(phase);
-  updateDialogSummary(text);
-
-  const commonSys = buildCommonSystem(profile);
-  const phaseSys  = buildPhaseSystem(phase, profile);
-  const isFinalTurn = (nextTurn === MAX_TURNS);
-
-  const metaUser  = buildUserMeta(profile, phase, text, {
-    firstTurn: false,
-    finalTurn: isFinalTurn
-  });
-
-  const msgs = [
-    { role:"system", content: commonSys },
-    { role:"system", content: phaseSys },
-    ...history,
-    { role:"user",   content: metaUser }
-  ];
-
-  try{
-    const reply = await withRetry(()=>callOpenAI(msgs));
-    addAssistant(reply);
-    history.push({role:"user",content:metaUser});
-    history.push({role:"assistant",content:reply});
-
-    // ★ここがポイント：9ターン目が終わったら取説生成
-    if (nextTurn === MAX_TURNS && !reportGenerated) {
-      await generateReportFlow();
-    }
-
-  }catch(e){
-    console.warn("chat error:", e);
-    addAssistant("今は他の人の相談に乗っておってな、少し時間をおいてからもう一度頼むのじゃ。");
-  }finally{
-    statusEl.textContent = "";
-    setBusy(false);
-  }
-}
-
-async function generateReportFlow() {
-  if (reportGenerated) return;
-  reportGenerated = true;
-
-  // 入力欄は止める（無料版＆課金導線に集中）
-  sendBtn.disabled = true;
-  freeInput.disabled = true;
-  stepHint.textContent = "";
-  statusEl.textContent = "仙人がまとめの準備をしておるぞ…";
-
-  try {
-    // 1) summaryJson（設計図）を作る：ここは従来どおり
-    const summaryResp = await fetch("/api/paid-summary", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profile, history }),
-    });
-
-    if (!summaryResp.ok) {
-      reportGenerated = false;
-      addAssistant("サマリー生成でエラーが出てしもうた…少し時間をおいて、もう一度試してくれんか。");
-      return;
-    }
-
-    const summaryJson = await summaryResp.json();
-
-    /* ★変更：tokenを生成して、token紐づけでlocalStorageに保存 */
-    const token = makeToken();
-    localStorage.setItem("koi_token", token);
-    localStorage.setItem(`koi_summaryJson_${token}`, JSON.stringify(summaryJson));
-    localStorage.setItem(`koi_profile_${token}`, JSON.stringify(profile));
-    localStorage.setItem(`koi_history_${token}`, JSON.stringify(history));
-
-    // （互換用：残しておいても害はない）
-    localStorage.setItem("koi_summaryJson", JSON.stringify(summaryJson));
-    localStorage.setItem("koi_profile", JSON.stringify(profile));
-    localStorage.setItem("koi_history", JSON.stringify(history));
-
-    // 2) ここで「無料版を授ける宣言」
-    addAssistant("……そしてじゃ。いまから、お主の“癖”と、今夜から効く小さな助言を授けるぞ。まずは無料版じゃ。");
-
-    // 3) 無料版（占い3つ）を /api/chat で生成して表示
-    await generateFreePreview(summaryJson);
-
-    // 4) 課金文言＋CTAボタンを表示（tokenを渡す）
-    showPayCTA(token);
-
-  } catch (e) {
-    console.error(e);
-    reportGenerated = false;
-    addAssistant("うまく動かなんだ…すまぬのう。少し時間をおいて試してくれんか。");
-  } finally {
-    statusEl.textContent = "";
-  }
-}
-  async function generateFreePreview(summaryJson) {
-  statusEl.textContent = "無料版トリセツを執筆中じゃ…";
-
-  const me = profile.gender === "男性" ? "俺" : "私";
-  const name = profile.name || "お主";
-
-  const sys = `
-あなたは「恋脳レポート」の恋愛仙人じゃ。
-一人称は「わし」。ユーザは必ず「お主」か「${name}」で呼ぶ。
-敬語（です/ます）は禁止。語尾は「〜じゃ／〜のう／〜ぞ／〜かもしれん」を混ぜる。
-
-いまは無料版を出す。
-出力ルール：
-- 見出しの前の「#」は出さない（Markdown見出しは使わない）
-- 文字数はだいたい 1500〜2200 文字
-- 次の構成で書く（括弧内の文字は出力しない）：
-
-1) はじめに：いまのお主の現在地
-2) 無料の占い：恋の不安に揺れやすい3つのクセ（必ず3つ。タイトルは以下から選ぶ）
-   - 反応の温度差で心がぐらぐらする
-   - 小さな違和感を拾いすぎる
-   - 次が決まらないと不安が増える
-   - 自分を責めすぎる
-   - 相手の本心を推理しすぎる
-  ※1つ目の説明文の中に、必ずこの一文をそのまま入れる：
-    「違和感を見逃さないのは、“精度の高い気配センサー”を持っているという証拠じゃ。」
-  ※各クセは「状況の例」→「なぜそうなるか」→「今夜から効く一手」を短く
-
-3) 結び：仙人からの最後のひと言（短く背中を押す）
-
-禁止：
-- 「（寄り添い章）」「（最低3案）」など内部メモっぽい括弧は絶対に出さない
-- 完全版の本文そのものは出さない（予告だけ）
-`.trim();
-
-  const user = `
-【参考データ】
-- profile: ${JSON.stringify(profile)}
-- history(last 8 turns): ${JSON.stringify(history.slice(-16))}
-- summaryJson: ${JSON.stringify(summaryJson)}
-- 一人称（ユーザ心の声用）: ${me}
-`.trim();
-
-  try {
-    const reply = await withRetry(() => callOpenAI([
-      { role: "system", content: sys },
-      { role: "user", content: user }
-    ]));
-
-    // それっぽく区切って出す
-    const bubble = addAssistantStreamBubble("── 無料版『恋愛取扱説明書』じゃ ──\n\n");
-    bubble.textContent += reply.trim();
-    chat.scrollTop = chat.scrollHeight;
-
-  } finally {
-    statusEl.textContent = "";
-  }
-}
-  function showPayCTA(token) {
-  // 既存の選択肢欄をCTAに使う（UIを増やさず最短で骨格を通す）
+function showPayCTA(token) {
   choicesWrap.innerHTML = "";
 
-  // 課金文言（チャット内に出す）
   addAssistant(
     "無料版はここまでじゃ。\n" +
     "……じゃが本当は、\n" +
@@ -1483,23 +1325,13 @@ async function generateReportFlow() {
     "まで、一本の道しるべとして渡せるんじゃ。\n" +
     "必要なら、完全版を作ってやろうかのう。"
   );
-    function createCheckoutToken() {
-  // できるだけ衝突しにくい token を発行（MVP最小）
-  if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
-  }
-  // 古い環境向けフォールバック
-  return `tok_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
 
-  // CTAボタン
   const btn = document.createElement("button");
-  btn.className = "choice"; // 既存スタイル流用
+  btn.className = "choice";
   btn.textContent = "完全版を¥480で受け取る";
-  btn.onclick = () => startCheckout(token, btn);
+  btn.onclick = () => startCheckout(token, btn);  // ★tokenを渡す
   choicesWrap.appendChild(btn);
 
-  // 参考：キャンセル導線（任意）
   const btn2 = document.createElement("button");
   btn2.className = "choice secondary";
   btn2.textContent = "いったん考える（閉じる）";
@@ -1509,35 +1341,35 @@ async function generateReportFlow() {
   choicesWrap.appendChild(btn2);
 }
 
-async function startCheckout() {
+/* ★最小改修：startCheckout は「渡された token」をそのまま使う */
+async function startCheckout(token, btn) {
   try {
     statusEl.textContent = "決済画面へ案内中じゃ…";
+    if (btn) btn.disabled = true;
 
-    // ★追加：token を発行して保存
-    const token = createCheckoutToken();
-    localStorage.setItem("koi_checkout_token", token);
+    // token一元化：引数 > localStorage > 生成 の順
+    const t = token || localStorage.getItem("koi_token") || getOrCreateToken();
+    localStorage.setItem("koi_token", t);
 
-    // ★追加：成功/失敗ページで token から復元できるよう、token紐づけで複製（最小の保険）
+    // token紐づけで復元用に複製（既存設計を維持）
     const summary = localStorage.getItem("koi_summaryJson");
     const prof    = localStorage.getItem("koi_profile");
     const hist    = localStorage.getItem("koi_history");
-    if (summary) localStorage.setItem(`koi_summaryJson_${token}`, summary);
-    if (prof)    localStorage.setItem(`koi_profile_${token}`, prof);
-    if (hist)    localStorage.setItem(`koi_history_${token}`, hist);
+    if (summary) localStorage.setItem(`koi_summaryJson_${t}`, summary);
+    if (prof)    localStorage.setItem(`koi_profile_${t}`, prof);
+    if (hist)    localStorage.setItem(`koi_history_${t}`, hist);
 
-    // ★修正：サーバが期待する { token } を送る
+    // サーバが期待する { token } を送る
     const res = await fetch("/api/create-checkout-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token: t }),
     });
 
     const dataText = await res.text();
     if (!res.ok) throw new Error(dataText || "checkout_error");
 
     const data = JSON.parse(dataText);
-
-    // create-checkout-session が { url } を返す想定
     if (data.url) {
       window.location.href = data.url;
       return;
@@ -1549,28 +1381,31 @@ async function startCheckout() {
     addAssistant("すまぬ、決済画面への案内で詰まったのう。時間をおいてもう一度押してくれ。");
   } finally {
     statusEl.textContent = "";
+    if (btn) btn.disabled = false;
   }
 }
+
 /* ===========================
    14) イベント & 起動
    =========================== */
-sendBtn.onclick = sendFree;
 
-// Enterキーでは送信しない（IME確定にも邪魔しない）
+// クリックのみ送信
+sendBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  sendFree();
+});
+
+// Enterキーでは送信しない（IME変換確定は邪魔しない）
 freeInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    // Enterで送信しない。フォーム送信等の既定挙動だけ止める。
-    e.preventDefault();
-    return;
-  }
+  if (e.key !== "Enter") return;
+  if (e.isComposing) return;
+  e.preventDefault();
 });
 
 (function boot(){
   showAsk();
 })();
 
+</script>
 </body>
 </html>
-
-
-
