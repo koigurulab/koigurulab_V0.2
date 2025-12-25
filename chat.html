@@ -1028,7 +1028,6 @@ async function withRetry(fn, max=3){
    - isBusy: API処理中の一時ロック（購入ボタンも止まる）
    - inputLocked: チャット入力のみ恒久ロック（購入ボタンは押せる）
    =========================== */
-let isBusy = false;
 let inputLocked = false;   // ★チャット入力のみロック
 let paywallShown = false;  // ★無料レポ＆購入ボタンまで出したか
 
@@ -1292,6 +1291,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
