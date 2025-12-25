@@ -481,7 +481,7 @@ const steps = [
   { key:"meeting",     kind:"choice", ask:`出会い方は？`,                                     choices:MEETING },
   { key:"known",       kind:"input",  ask:`知り合ってどれくらい？（例：1〜3ヶ月）` },
   { key:"contact",     kind:"input",  ask:`連絡頻度と、どちらからが多い？（例：2〜3日に1回／送るのは：自分からが多い）` },
-  { key:"worry",       kind:"input",  ask:`いちばん悩んでいるポイントを1〜2行でそのまま書いてくれ` },
+  { key:"worry",       kind:"input",  ask:`いちばん悩んでいるポイントを3行くらいでそのまま書いてくれ。詳細であればあるほど、わしは相談に乗りやすいぞ` },
   { key:"mental",      kind:"input",  ask:`今の心の状態は？（例：不安はあるが日常は回る）` },
   { key:"style",       kind:"choice", ask:`相談スタイルを選んでくれ。`, choices:["1) もやもや整理したい","2) 今後のアクションを決めたい"] }
 ];
@@ -1196,5 +1196,6 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
