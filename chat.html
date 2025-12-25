@@ -576,10 +576,219 @@ async function onAnswer(valueRaw){
 }
 
 /* ===========================
-   5) インテーク時の一言コメント（元コード踏襲）
+   5) インテーク時の一言コメント
    =========================== */
 async function quickAcknowledge(key, value){
-  // ここは元のロジックをそのまま残す（必要最低限のフォールバックだけ）
+  try {
+    const me = profile.gender === "男性" ? "俺" : "私";
+
+    // --- 自分の MBTI ---
+    if (key === "selfMBTI" && MBTI_DEF[value]) {
+      const d = MBTI_DEF[value];
+      const msgs = [
+        {
+          role:"system",
+          content: `
+あなたは「恋脳レポート」の恋愛仙人じゃ。
+一人称は「わし」。ユーザは「お主」かニックネーム（${profile.name}）で呼ぶ。
+これは『お主自身』のMBTIタイプを受け取った場面じゃ。
+
+出力条件：
+・最初の1文は必ず「ほう、${d.code}か。」の形で始める。
+・続く3〜5文で、下記の説明をもとに「普段の性格」と「恋愛で出やすい心のクセ」を仙人口調で占いっぽく語る。
+・そのあとに、ユーザの心の中の独り言を2行、カギ括弧で出すこと。
+　- 一人称は「${me}」
+　- 語尾は「〜なんじゃないか…？」「〜なのかな…」「〜かもしれない…」など自然な独白
+　- 仙人語（〜じゃ／〜のう）は絶対に混ぜない
+・最後に1〜2文で、
+　「では次に、${profile.name || "お主"}の恋愛16タイプを教えてくれ。分からなければ『わからない』でもかまわんぞ」
+　という意味の文で、次の質問につなげる。
+・全体でおおよそ400〜550文字程度。
+・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
+・敬語やビジネス口調は禁止。
+          `.trim()
+        },
+        {
+          role:"user",
+          content: `
+MBTI: ${d.code}
+日本語名: ${d.jp}
+説明: ${d.summary}
+          `.trim()
+        }
+      ];
+      
+      statusEl.textContent = "仙人が考え中じゃ…";
+
+      try {
+        const reply = await withRetry(()=>callOpenAI(msgs));
+        addAssistant(reply.trim());
+      } finally {
+        statusEl.textContent = "";
+      }
+      return;
+    }
+
+    // --- 自分の恋愛16タイプ ---
+    if (key === "selfLove" && LOVE16_DEF[value]) {
+      const dLove = LOVE16_DEF[value];
+      const mbti = profile.selfMBTI;
+      const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti] : null;
+
+      const msgs = [
+        {
+          role:"system",
+          content: `
+あなたは「恋脳レポート」の恋愛仙人じゃ。
+一人称は「わし」。ユーザは「お主」かニックネーム（${profile.name}）で呼ぶ。
+これは『お主自身』の恋愛16タイプを受け取った場面じゃ。
+
+出力条件：
+・最初の1文は必ず「ほう、「${value}」タイプか。」で始める。
+・続く3〜4文で、この恋愛16タイプの特徴を、
+　「感情の動き」「恋の入り方」「傷つきやすさ／不安の振れ幅」あたりに触れながら占いっぽく語る。
+・もしMBTI情報（${mbti || "不明"}）がある場合は、
+　中盤〜後半で1〜2文使って
+　『${value}×${mbti}ってな、〜タイプなんじゃ。』
+　のように「掛け算」で性格当てを行い、そのクセが今回の恋でどう出やすいかを述べる。
+・そのあとに、ユーザの心の中の独り言を2行、カギ括弧で出すこと。
+　- 一人称は「${me}」
+　- 語尾は「〜なんじゃないか…？」「〜なのかな…」「〜かもしれない…」など自然な独白
+　- 仙人語は混ぜない
+・最後に1〜2文で、
+　「${profile.name || "お主"}は情熱が強い分、反応の温度差に敏感になりやすいのう」など一言まとめつつ締める。
+・全体で450〜650文字程度。
+・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
+・敬語やビジネス口調は禁止。
+          `.trim()
+        },
+        {
+          role:"user",
+          content: `
+恋愛16タイプ: ${value}
+タイプ説明: ${dLove.summary}
+MBTI: ${dMbti ? dMbti.code : "不明"}
+MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
+          `.trim()
+        }
+      ];
+      statusEl.textContent = "仙人が考え中じゃ…";
+
+      try {
+        const reply = await withRetry(()=>callOpenAI(msgs));
+        addAssistant(reply.trim());
+      } finally {
+        statusEl.textContent = "";
+      }
+      return;
+    }
+
+    // --- 相手の MBTI ---
+    if (key === "targetMBTI" && MBTI_DEF[value]) {
+      const d = MBTI_DEF[value];
+      const targetLabel =
+        profile.targetGender === "男性" ? "男性" :
+        profile.targetGender === "女性" ? "女性" : "相手";
+
+      const msgs = [
+        {
+          role:"system",
+          content: `
+あなたは「恋脳レポート」の恋愛仙人じゃ。
+一人称は「わし」。ユーザは「お主」かニックネーム（${profile.name}）で呼ぶ。
+これは『相手』のMBTIタイプを受け取った場面じゃ。
+
+出力条件：
+・最初の文は必ず「承知したぞ。${d.code}（${d.jp}）の${targetLabel}とな。」の形で始める。
+・続く3〜4文で、このタイプの
+　「行動の速さ／慎重さ」「恋愛でのテンポ」「感情の出し方」などを仙人目線で占いっぽく語る。
+・その中で1文は、お主目線での感じ方に軽く触れてよい。
+・最後の1〜2文で、
+　「では次に、その相手の恋愛16タイプが分かるようなら教えてくれ。わからなければ『わからない』でよいぞ」
+　という意味の文で、次の質問につなげる。
+・全体で300〜450文字程度。
+・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
+・敬語やビジネス口調は禁止。
+          `.trim()
+        },
+        {
+          role:"user",
+          content: `
+相手のMBTI: ${d.code}
+日本語名: ${d.jp}
+説明: ${d.summary}
+          `.trim()
+        }
+      ];
+      statusEl.textContent = "仙人が考え中じゃ…";
+
+      try {
+        const reply = await withRetry(()=>callOpenAI(msgs));
+        addAssistant(reply.trim());
+      } finally {
+        statusEl.textContent = "";
+      }
+      return;
+    }
+
+    // --- 相手の恋愛16タイプ ---
+    if (key === "targetLove" && LOVE16_DEF[value]) {
+      const dLove = LOVE16_DEF[value];
+      const tMbti = profile.targetMBTI;
+      const dMbti = tMbti && MBTI_DEF[tMbti] ? MBTI_DEF[tMbti] : null;
+      const targetLabel =
+        profile.targetGender === "男性" ? "男性" :
+        profile.targetGender === "女性" ? "女性" : "相手";
+
+      const msgs = [
+        {
+          role:"system",
+          content: `
+あなたは「恋脳レポート」の恋愛仙人じゃ。
+一人称は「わし」。ユーザは「お主」かニックネーム（${profile.name}）で呼ぶ。
+これは『相手』の恋愛16タイプを受け取った場面じゃ。
+
+出力条件：
+・最初の1文は「承知したぞ。「${value}」タイプの${targetLabel}か…。」で始める。
+・続く3〜4文で、この恋愛16タイプの
+　「優しさ／自由さ」「小悪魔っぽさ」「距離の取り方」などを占いっぽく語る。
+・相手MBTI情報（${tMbti || "不明"}）がある場合は、
+　1〜2文を使って
+　「${tMbti}らしい内面のクセ」と「${value}らしい恋の動き方」が合わさるとどう見えやすいかを描く。
+・必要に応じて、お主側のタイプとの噛み合い／ズレも一言触れてよい。
+・最後は1〜2文で、
+　「惹かれるが読みにくい相手かもしれんのう」など、あくまで“パターン”としてまとめて締める。
+・全体で350〜500文字程度。
+・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
+・敬語やビジネス口調は禁止。
+          `.trim()
+        },
+        {
+          role:"user",
+          content: `
+相手の恋愛16タイプ: ${value}
+タイプ説明: ${dLove.summary}
+相手のMBTI: ${dMbti ? dMbti.code : "不明"}
+相手MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
+          `.trim()
+        }
+      ];
+      statusEl.textContent = "仙人が考え中じゃ…";
+
+      try {
+        const reply = await withRetry(()=>callOpenAI(msgs));
+        addAssistant(reply.trim());
+      } finally {
+        statusEl.textContent = "";
+      }
+      return;
+    }
+
+  } catch(e){
+    console.warn("quickAcknowledge AI error:", e);
+  }
+
+  // ---- フォールバック固定メッセージ ----
   const map = {
     name:        `よし、${value}と呼ぶぞ。肩の力を抜いて話してええのう。`,
     gender:      `受け取ったぞ。`,
@@ -1291,6 +1500,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
