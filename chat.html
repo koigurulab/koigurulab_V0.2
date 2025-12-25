@@ -793,7 +793,7 @@ const COMMON_SYS_TEMPLATE = String.raw`
      を入れる。
 
   3. 最後の1文は、
-     「いちばん近い番号か、その他なら{{me}}の言葉で書いて教えてくれんか？」
+     「いちばん近い番号か、その他ならお主の言葉で書いて教えてくれんか？」
      という意味の文章で締める。
 
 ────────────────────
@@ -1013,7 +1013,7 @@ async function withRetry(fn, max=3){
     try{
       return await fn();
     }catch(e){
-      if (e.message==="BUSY" && i<max-1){
+      if (e?.message==="BUSY" && i<max-1){
         await new Promise(r=>setTimeout(r,wait));
         wait*=2;
         continue;
@@ -1024,12 +1024,201 @@ async function withRetry(fn, max=3){
 }
 
 /* ===========================
-   12) 以降のやり取り（通常チャット）
+   12) UIロック制御（重要）
+   - isBusy: API処理中の一時ロック（購入ボタンも止まる）
+   - inputLocked: チャット入力のみ恒久ロック（購入ボタンは押せる）
+   =========================== */
+let isBusy = false;
+let inputLocked = false;   // ★チャット入力のみロック
+let paywallShown = false;  // ★無料レポ＆購入ボタンまで出したか
+
+function lockChatInput(placeholderText) {
+  inputLocked = true;
+  sendBtn.disabled = true;
+  freeInput.disabled = true;
+  if (placeholderText) freeInput.placeholder = placeholderText;
+}
+
+function unlockChatInput() {
+  inputLocked = false;
+  sendBtn.disabled = false;
+  freeInput.disabled = false;
+}
+
+function setBusy(flag){
+  isBusy = flag;
+
+  // 入力欄は inputLocked を最優先
+  sendBtn.disabled   = inputLocked ? true : flag;
+  freeInput.disabled = inputLocked ? true : flag;
+
+  // choiceボタンは busy中だけ止める（paywallの購入ボタンは通常押せる）
+  const choiceBtns = choicesWrap.querySelectorAll("button.choice");
+  choiceBtns.forEach(btn => btn.disabled = flag);
+}
+
+/* ===========================
+   13) Paid/Free 共通ユーティリティ
+   =========================== */
+function makeToken() {
+  if (crypto?.randomUUID) return crypto.randomUUID();
+  return "tok_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function saveSessionByToken(token, payload) {
+  localStorage.setItem(`koi_session_${token}`, JSON.stringify(payload));
+}
+
+function loadSessionByToken(token) {
+  const raw = localStorage.getItem(`koi_session_${token}`);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+async function startCheckout(token) {
+  const r = await fetch("/api/create-checkout-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  const text = await r.text();
+  if (!r.ok) throw new Error(`checkout-session error: ${r.status} ${text}`);
+  const data = JSON.parse(text);
+  if (!data?.url) throw new Error("checkout-session: missing url");
+  window.location.href = data.url;
+}
+
+async function fetchPaidSummaryJson() {
+  const resp = await fetch("/api/paid-summary", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profile, history }),
+  });
+  const raw = await resp.text();
+  if (!resp.ok) throw new Error(`paid-summary error: ${resp.status} ${raw}`);
+  return JSON.parse(raw);
+}
+
+async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(bodyObj),
+  });
+
+  if (!resp.ok || !resp.body) {
+    const t = await resp.text().catch(() => "");
+    throw new Error(`${endpoint} error: ${resp.status} ${t}`);
+  }
+
+  const bubble = addAssistantStreamBubble(bubbleTitle || "");
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bubble.textContent += decoder.decode(value, { stream: true });
+    chat.scrollTop = chat.scrollHeight;
+  }
+}
+
+/* ===========================
+   14) 8回目終了後：無料レポ → 購入ボタン表示 → 入力ロック
+   =========================== */
+async function endFreeChatAndShowPaywall() {
+  if (paywallShown) return;
+  paywallShown = true;
+
+  // この時点でチャット入力は終了（ただし購入ボタンは押せるようにする）
+  lockChatInput("無料レポートは完了じゃ。購入ボタンから進めてくれ。");
+
+  setBusy(true);
+  statusEl.textContent = "仙人がまとめを用意しておる…";
+
+  try {
+    // 1) summaryJson（設計図）作成（有料と同じ）
+    const summaryJson = await fetchPaidSummaryJson();
+
+    // 2) 無料レポート（切り取り）をストリーム表示
+    statusEl.textContent = "仙人が無料レポートを書いておる…";
+    await streamTextPlain(
+      "/api/free-report-stream",
+      summaryJson,
+      "── ここからは『無料レポート（切り取り）』じゃ。\n\n"
+    );
+
+    // 3) token発行 → 保存（決済後に有料生成に使う）
+    const token = makeToken();
+    saveSessionByToken(token, { summaryJson, profile, history });
+
+    // 4) 購入ボタン表示
+    showPaywallButtons(token);
+
+  } catch (e) {
+    console.error(e);
+    paywallShown = false;
+    addAssistant("すまぬのう、無料レポートの生成で詰まってしもうた。/api/free-report-stream と /api/paid-summary を確認してくれんか。");
+    addAssistant("一度ページを更新して、もう一度試してくれんかのう。");
+  } finally {
+    statusEl.textContent = "";
+    setBusy(false);
+  }
+}
+
+function showPaywallButtons(token) {
+  choicesWrap.innerHTML = "";
+
+  addAssistant("…ふむ、今日はここまでにしておこうかのう。続きの『有料レポート（完全版）』は購入後に生成して渡すぞい。");
+
+  const buyBtn = document.createElement("button");
+  buyBtn.className = "choice";
+  buyBtn.textContent = "購入して有料レポートを作る（Stripe）";
+  buyBtn.addEventListener("click", async () => {
+    try {
+      setBusy(true);
+      statusEl.textContent = "決済画面へ移動中じゃ…";
+      await startCheckout(token);
+    } catch (err) {
+      console.error(err);
+      addAssistant("決済ページへの遷移に失敗したようじゃ。/api/create-checkout-session を確認してくれんかのう。");
+    } finally {
+      statusEl.textContent = "";
+      setBusy(false);
+    }
+  });
+
+  const openPaidBtn = document.createElement("button");
+  openPaidBtn.className = "choice secondary";
+  openPaidBtn.textContent = "購入済みなら有料レポートを表示（token付き）";
+  openPaidBtn.addEventListener("click", () => {
+    // paid-success.html 側で token を受け取り、localStorage の koi_session_{token} を使って /api/paid-report を叩く想定
+    window.location.href = `paid-success.html?token=${encodeURIComponent(token)}`;
+  });
+
+  const laterBtn = document.createElement("button");
+  laterBtn.className = "choice secondary";
+  laterBtn.textContent = "今は購入しない（終了）";
+  laterBtn.addEventListener("click", () => {
+    addAssistant("了解じゃ。必要になったらまた来るがよいぞ。");
+    choicesWrap.innerHTML = "";
+  });
+
+  choicesWrap.appendChild(buyBtn);
+  choicesWrap.appendChild(openPaidBtn);
+  choicesWrap.appendChild(laterBtn);
+}
+
+/* ===========================
+   15) 以降のやり取り（通常チャット）
+   - 8回目の仙人返信後に無料レポ→購入ボタン→入力ロック
    =========================== */
 async function sendFree(){
+  if (isBusy) return;
+  if (inputLocked) return;
+
   const text = freeInput.value.trim();
   if (!text) return;
-  if (isBusy) return;
 
   // インテーク中
   if (idx < steps.length){
@@ -1052,126 +1241,33 @@ async function sendFree(){
 
   const msgs = [
     { role:"system", content: buildCommonSystem(profile) },
-    { role:"system", content: buildPhaseSystem(phase) },
+    { role:"system", content: buildPhaseSystem(phase, profile) },
     ...history,
-    { role:"user", content: buildUserMeta(phase, text, { firstTurn:false, finalTurn:isFinalTurn }) }
+    { role:"user", content: buildUserMeta(profile, phase, text, { firstTurn:false, finalTurn:isFinalTurn }) }
   ];
 
   try{
     const reply = await withRetry(()=>callOpenAI(msgs));
     addAssistant(reply);
+
     history.push({role:"user",content:msgs[msgs.length-1].content});
     history.push({role:"assistant",content:reply});
 
-    // ★ここが改修点(2)：MAX_TURNS で Stripe導線へ（自動生成はしない）
-    if (nextTurn === MAX_TURNS && !paywallPrepared) {
-      await preparePaidFlow();
+    // ★8回目の返信が出た後：無料レポ → 課金導線 → 入力ロック
+    if (nextTurn === MAX_TURNS) {
+      await endFreeChatAndShowPaywall();
+      return;
     }
 
-  }catch(e){
+  } catch(e){
     console.warn("chat error:", e);
     addAssistant("今は他の人の相談に乗っておってな、少し時間をおいてからもう一度頼むのじゃ。");
-  }finally{
+  } finally {
     statusEl.textContent = "";
     setBusy(false);
   }
 }
 
-/* ===========================
-   13) Stripe用の「有料導線」準備：追加
-   - summaryJson を生成
-   - token を発行して localStorage に保存
-   - Checkout に遷移するボタンを出す
-   =========================== */
-async function preparePaidFlow(){
-  if (paywallPrepared) return;
-  paywallPrepared = true;
-
-  statusEl.textContent = "仙人がまとめを用意しておる…";
-
-  try {
-    // 1) summaryJson（設計図）を作る
-    const summaryResp = await fetch("/api/paid-summary", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profile, history }),
-    });
-
-    const raw = await summaryResp.text();
-    if (!summaryResp.ok) {
-      console.log("paid-summary error:", summaryResp.status, raw);
-      paywallPrepared = false;
-      addAssistant("サマリー生成でエラーが出てしもうた…。もう一度試してくれんかのう。");
-      return;
-    }
-
-    const summaryJson = JSON.parse(raw);
-
-    // 2) token発行 → 保存（token不一致対策の本体）
-    const token = makeToken();
-    saveSessionByToken(token, { summaryJson, profile, history });
-
-    // 3) UI：購入ボタンを表示
-    addAssistant("よし、ここまでの内容で『有料レポート』を作れる下準備は整ったぞ。続き（レポート生成）は購入後に進めるのじゃ。");
-
-    choicesWrap.innerHTML = "";
-
-    const buyBtn = document.createElement("button");
-    buyBtn.className = "choice";
-    buyBtn.textContent = "購入してレポートを作る（Stripe）";
-    buyBtn.addEventListener("click", async () => {
-      try {
-        setBusy(true);
-        statusEl.textContent = "決済画面へ移動中じゃ…";
-        await startCheckout(token);
-      } catch (e) {
-        console.warn(e);
-        addAssistant("決済ページへの遷移で失敗したようじゃ…。/api/create-checkout-session を確認してくれんかのう。");
-      } finally {
-        statusEl.textContent = "";
-        setBusy(false);
-      }
-    });
-
-    const laterBtn = document.createElement("button");
-    laterBtn.className = "choice secondary";
-    laterBtn.textContent = "今は購入しない（ここで終了）";
-    laterBtn.addEventListener("click", () => {
-      addAssistant("了解じゃ。必要になったらまた来るがよいぞ。");
-      // ここではロックしない（好きに読み返せる）
-      sendBtn.disabled = true;
-      freeInput.disabled = true;
-      freeInput.placeholder = "購入する場合はページを再読み込みして、最後まで進めてくれ。";
-      stepHint.textContent = "";
-    });
-
-    // 任意：購入後に飛ぶページが report.html で token をクエリに乗せるなら使える
-    const openReportBtn = document.createElement("button");
-    openReportBtn.className = "choice secondary";
-    openReportBtn.textContent = "購入済みならレポート表示（token付き）";
-    openReportBtn.addEventListener("click", () => {
-      // report.html 側で token を見て localStorage の koi_summaryJson_{token} を使う想定
-      window.location.href = `report.html?token=${encodeURIComponent(token)}`;
-    });
-
-    choicesWrap.appendChild(buyBtn);
-    choicesWrap.appendChild(openReportBtn);
-    choicesWrap.appendChild(laterBtn);
-
-    // 4) 入力は止める（勝手に次へ進めない）
-    sendBtn.disabled = true;
-    freeInput.disabled = true;
-    freeInput.placeholder = "ここまでで無料パートは完了じゃ。購入ボタンから進めてくれ。";
-    stepHint.textContent = "";
-
-  } catch (e) {
-    console.error(e);
-    paywallPrepared = false;
-    addAssistant("うまく下準備ができんかった…少し時間をおいて試してくれんか。");
-  } finally {
-    statusEl.textContent = "";
-  }
-}
 
 /* ===========================
    14) イベント & 起動：改修(1)「クリック送信のみ」
@@ -1196,6 +1292,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
