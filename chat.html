@@ -836,8 +836,9 @@ function showAsk(){
   }
 }
 
+
 /* ===========================
-   7) OpenAI 呼び出し（/api/chat 経由）
+   7) OpenAI 呼び出し（/api/chat 経由）※429リトライ対応版
    =========================== */
 async function callOpenAI(messages){
   const res = await fetch("/api/chat", {
@@ -847,11 +848,18 @@ async function callOpenAI(messages){
   });
 
   const text = await res.text();
-  console.log("=== /api/chat raw response ===");
-  console.log("status:", res.status);
-  console.log("body:", text);
 
-  if (!res.ok) throw new Error("API_ERROR");
+  // 429はリトライ対象
+  if (res.status === 429) {
+    throw new Error("BUSY");
+  }
+
+  if (!res.ok) {
+    console.log("=== /api/chat raw response ===");
+    console.log("status:", res.status);
+    console.log("body:", text);
+    throw new Error("API_ERROR");
+  }
 
   const data = JSON.parse(text);
   return data.content || "";
@@ -1183,7 +1191,91 @@ ${userText}`;
 
 
 /* ===========================
-   10) 初回応答
+   9) systemビルダー & メタ生成（引数整合を修正）
+   =========================== */
+
+function buildCommonSystem(profile){
+  const me = profile.gender === "男性" ? "俺" : "私";
+  const name = profile.name || "お主";
+  return COMMON_SYS_TEMPLATE
+    .replaceAll("{{name}}", name)
+    .replaceAll("{{me}}", me);
+}
+
+function buildPhaseSystem(phase, profile){
+  const me = profile.gender === "男性" ? "俺" : "私";
+  let base = "";
+  if (phase === "F") base = SYS_PHASE_F;
+  else if (phase === "P") base = SYS_PHASE_P;
+  else base = SYS_PHASE_D;
+  return base.replaceAll("{{me}}", me);
+}
+
+// self/partner 要約
+function buildSelfSummary(profile){
+  const mbti = profile.selfMBTI;
+  const love = profile.selfLove;
+  const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti].summary : "";
+  const dLove = love && LOVE16_DEF[love] ? LOVE16_DEF[love].summary : "";
+  let lines = [];
+  if (mbti) lines.push(`${mbti}として、${dMbti || "普段から考え方にクセが出やすいタイプ"}`);
+  if (love) lines.push(`恋愛16タイプ「${love}」として、${dLove || "恋になると感情の振れ幅が大きくなりやすい"}`);
+  if (!lines.length) lines.push("タイプ情報が少ないが、感情と理性の両方で悩みやすい傾向がありそう。");
+  return lines.join(" / ");
+}
+
+function buildPartnerSummary(profile){
+  const mbti = profile.targetMBTI;
+  const love = profile.targetLove;
+  const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti].summary : "";
+  const dLove = love && LOVE16_DEF[love] ? LOVE16_DEF[love].summary : "";
+  let lines = [];
+  if (mbti) lines.push(`相手は ${mbti} として、${dMbti || "その場の状況を見て動きやすいタイプ"}`);
+  if (love) lines.push(`恋愛16タイプ「${love}」として、${dLove || "恋愛の温度が場面によって揺れやすい"}`);
+  if (!lines.length) lines.push("相手のタイプ情報は少ないが、その時のノリや感覚で動きやすい可能性がある。");
+  return lines.join(" / ");
+}
+
+// dialogSummary を更新
+function initDialogSummary(){
+  dialogState.selfSummary    = buildSelfSummary(profile);
+  dialogState.partnerSummary = buildPartnerSummary(profile);
+  dialogState.dialogSummary =
+    `関係性: ${profile.relation || "不明"} / 出会い: ${profile.meeting || "不明"} / ` +
+    `悩み: ${profile.worry || "未入力"} / 心の状態: ${profile.mental || "未入力"}`;
+}
+
+function updateDialogSummary(latestUserText){
+  const trimmed = String(latestUserText || "").replace(/\s+/g," ").slice(0,80);
+  dialogState.dialogSummary =
+    dialogState.dialogSummary + ` / ユーザ直近の発言: ${trimmed}`;
+}
+
+// ★引数： (profile, phase, userText, opt) に統一
+function buildUserMeta(profile, phase, userText, opt){
+  const meta = {
+    phase,
+    first_turn: !!(opt && opt.firstTurn),
+    final_turn: !!(opt && opt.finalTurn),
+    question_theme: dialogState.questionTheme,
+    self_mbti: profile.selfMBTI || "",
+    self_love: profile.selfLove || "",
+    partner_mbti: profile.targetMBTI || "",
+    partner_love: profile.targetLove || "",
+    self_archetype_summary: dialogState.selfSummary,
+    partner_archetype_summary: dialogState.partnerSummary,
+    summary_so_far: dialogState.dialogSummary
+  };
+
+  return `【メタ情報】
+${JSON.stringify(meta, null, 2)}
+
+【今回のユーザ発言】
+${userText}`;
+}
+
+/* ===========================
+   10) 初回応答（buildUserMeta呼び出し修正）
    =========================== */
 async function startFirstTurn(){
   initDialogSummary();
@@ -1198,8 +1290,8 @@ async function startFirstTurn(){
 
   const msgs = [
     { role:"system", content: buildCommonSystem(profile) },
-    { role:"system", content: buildPhaseSystem(phase) },
-    { role:"user",   content: buildUserMeta(phase, firstUserText, { firstTurn:true }) }
+    { role:"system", content: buildPhaseSystem(phase, profile) },
+    { role:"user",   content: buildUserMeta(profile, phase, firstUserText, { firstTurn:true }) }
   ];
 
   try{
@@ -1233,24 +1325,18 @@ async function withRetry(fn, max=3){
 }
 
 /* ===========================
-   12) UIロック制御（重要）
+   12) UIロック制御（重複setBusyを排除してここだけに統一）
    - isBusy: API処理中の一時ロック（購入ボタンも止まる）
    - inputLocked: チャット入力のみ恒久ロック（購入ボタンは押せる）
    =========================== */
-let inputLocked = false;   // ★チャット入力のみロック
-let paywallShown = false;  // ★無料レポ＆購入ボタンまで出したか
+let inputLocked  = false;   // チャット入力のみロック
+let paywallShown = false;   // 無料レポ＆購入ボタンまで出したか
 
 function lockChatInput(placeholderText) {
   inputLocked = true;
   sendBtn.disabled = true;
   freeInput.disabled = true;
   if (placeholderText) freeInput.placeholder = placeholderText;
-}
-
-function unlockChatInput() {
-  inputLocked = false;
-  sendBtn.disabled = false;
-  freeInput.disabled = false;
 }
 
 function setBusy(flag){
@@ -1260,27 +1346,53 @@ function setBusy(flag){
   sendBtn.disabled   = inputLocked ? true : flag;
   freeInput.disabled = inputLocked ? true : flag;
 
-  // choiceボタンは busy中だけ止める（paywallの購入ボタンは通常押せる）
+  // choices（購入ボタン等）は busy 中だけ止める（＝決済遷移中など）
   const choiceBtns = choicesWrap.querySelectorAll("button.choice");
   choiceBtns.forEach(btn => btn.disabled = flag);
 }
 
 /* ===========================
-   13) Paid/Free 共通ユーティリティ
+   13) Paid/Free 共通ユーティリティ（保存方式を両対応にして事故回避）
    =========================== */
 function makeToken() {
   if (crypto?.randomUUID) return crypto.randomUUID();
   return "tok_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+// ★ paid-success.html 側がどちらの方式でも拾えるよう、両方保存
 function saveSessionByToken(token, payload) {
-  localStorage.setItem(`koi_session_${token}`, JSON.stringify(payload));
+  try {
+    // 新方式：まとめて
+    localStorage.setItem(`koi_session_${token}`, JSON.stringify(payload));
+
+    // 旧方式：分割（互換）
+    localStorage.setItem("koi_token", token);
+    localStorage.setItem(`koi_summaryJson_${token}`, JSON.stringify(payload.summaryJson ?? null));
+    localStorage.setItem(`koi_profile_${token}`, JSON.stringify(payload.profile ?? null));
+    localStorage.setItem(`koi_history_${token}`, JSON.stringify(payload.history ?? null));
+    localStorage.setItem(`koi_createdAt_${token}`, String(Date.now()));
+  } catch (e) {
+    console.warn("localStorage save failed:", e);
+  }
 }
 
 function loadSessionByToken(token) {
+  // 新方式
   const raw = localStorage.getItem(`koi_session_${token}`);
-  if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  if (raw) {
+    try { return JSON.parse(raw); } catch {}
+  }
+
+  // 旧方式（互換）
+  try {
+    const summaryJson = JSON.parse(localStorage.getItem(`koi_summaryJson_${token}`) || "null");
+    const profile_    = JSON.parse(localStorage.getItem(`koi_profile_${token}`) || "null");
+    const history_    = JSON.parse(localStorage.getItem(`koi_history_${token}`) || "null");
+    if (!summaryJson && !profile_ && !history_) return null;
+    return { summaryJson, profile: profile_, history: history_ };
+  } catch {
+    return null;
+  }
 }
 
 async function startCheckout(token) {
@@ -1338,7 +1450,7 @@ async function endFreeChatAndShowPaywall() {
   if (paywallShown) return;
   paywallShown = true;
 
-  // この時点でチャット入力は終了（ただし購入ボタンは押せるようにする）
+  // この時点でチャット入力は終了（ただし購入ボタンは押せる）
   lockChatInput("無料レポートは完了じゃ。購入ボタンから進めてくれ。");
 
   setBusy(true);
@@ -1377,7 +1489,7 @@ async function endFreeChatAndShowPaywall() {
 function showPaywallButtons(token) {
   choicesWrap.innerHTML = "";
 
-  addAssistant("…ふむ、今日はここまでにしておこうかのう。続きの『有料レポート（完全版）』は購入後に生成して渡すぞい。");
+  addAssistant("…ふむ、今日はここまでにしておこうかのう。無料版はここまでじゃ。続きの『有料レポート（完全版）』は購入後に生成して渡すぞい。");
 
   const buyBtn = document.createElement("button");
   buyBtn.className = "choice";
@@ -1400,7 +1512,6 @@ function showPaywallButtons(token) {
   openPaidBtn.className = "choice secondary";
   openPaidBtn.textContent = "購入済みなら有料レポートを表示（token付き）";
   openPaidBtn.addEventListener("click", () => {
-    // paid-success.html 側で token を受け取り、localStorage の koi_session_{token} を使って /api/paid-report を叩く想定
     window.location.href = `paid-success.html?token=${encodeURIComponent(token)}`;
   });
 
@@ -1419,7 +1530,7 @@ function showPaywallButtons(token) {
 
 /* ===========================
    15) 以降のやり取り（通常チャット）
-   - 8回目の仙人返信後に無料レポ→購入ボタン→入力ロック
+   - 8回目の仙人返信後に無料レポ→課金導線→入力ロック
    =========================== */
 async function sendFree(){
   if (isBusy) return;
@@ -1478,7 +1589,7 @@ async function sendFree(){
 
 
 /* ===========================
-   14) イベント & 起動：改修(1)「クリック送信のみ」
+   16) イベント & 起動（Enter送信しない／クリック送信）
    =========================== */
 
 // クリックで送信（onclick 代入は使わない）
@@ -1500,6 +1611,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
