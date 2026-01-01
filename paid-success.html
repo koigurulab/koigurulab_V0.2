@@ -1,6 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>完全版レポート生成</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; padding: 20px; line-height: 1.7; }
+    .box { max-width: 900px; margin: 0 auto; }
+    .status { padding: 12px 14px; background: #fff3f3; border: 1px solid #ffd1d1; border-radius: 10px; margin-bottom: 16px; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid #eee; padding: 14px; border-radius: 10px; min-height: 120px; }
+    button { padding: 10px 14px; border-radius: 10px; border: 0; background: #ff5a7a; color: white; font-weight: 700; cursor: pointer; }
+    a { color: #ff5a7a; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>完全版を生成中じゃ…</h1>
+    <div id="status" class="status">決済は完了したようじゃ。レポートを組み立てておるぞ。</div>
+    <pre id="out"></pre>
+
+    <div id="actions" style="display:none; margin-top:16px;">
+      <button id="retry">もう一度生成する</button>
+      <div style="margin-top:10px;">
+        <a href="/chat.html">チャットへ戻る</a>
+      </div>
+    </div>
+  </div>
+
 <script>
 (function () {
-  function main() {
+  function safeJsonParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
+
+  function loadSummary(token) {
+    if (!token) return null;
+
+    // 新方式：まとめて保存
+    const v1 = safeJsonParse(localStorage.getItem(`koi_session_${token}`));
+    if (v1 && typeof v1 === "object") {
+      if (v1.summaryJson && typeof v1.summaryJson === "object") return v1.summaryJson;
+      // summaryJson自体を保存しているケースにも対応
+      if (v1.fortune_traits || v1.profile_snapshot || v1.title) return v1;
+    }
+
+    // 旧方式：分割保存
+    const v2 = safeJsonParse(localStorage.getItem(`koi_summaryJson_${token}`));
+    if (v2 && typeof v2 === "object") return v2;
+
+    return null;
+  }
+
+  async function run() {
     const qs = new URLSearchParams(location.search);
     const token = qs.get("token");
 
@@ -9,88 +58,56 @@
     const actionsEl = document.getElementById("actions");
     const retryBtn  = document.getElementById("retry");
 
-    function safeJsonParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
+    // ★ログは token 取得後
+    console.log("token:", token);
+    console.log("koi_session:", localStorage.getItem(`koi_session_${token}`));
+    console.log("koi_summaryJson:", localStorage.getItem(`koi_summaryJson_${token}`));
 
-    function loadSummary() {
-      if (!token) return null;
+    const summaryJson = loadSummary(token);
 
-      const v1 = safeJsonParse(localStorage.getItem(`koi_session_${token}`));
-      if (v1 && typeof v1 === "object") {
-        if (v1.summaryJson && typeof v1.summaryJson === "object") return v1.summaryJson;
-        if (v1.fortune_traits || v1.profile_snapshot || v1.title) return v1;
-      }
-
-      const candidates = [
-        `koiguru_paid_summary_${token}`,
-        `koi_summaryJson_${token}`,
-        `koi_paid_summary_${token}`,
-      ];
-      for (const key of candidates) {
-        const obj = safeJsonParse(localStorage.getItem(key));
-        if (obj && typeof obj === "object") return obj;
-      }
-      return null;
+    if (!summaryJson) {
+      statusEl.textContent =
+        "このブラウザにデータが見当たらん…。決済前に使っていたのと同じ端末・同じブラウザで開いておるか確認してくれ。";
+      actionsEl.style.display = "block";
+      return;
     }
 
-    async function run() {
-      const summaryJson = loadSummary();
+    statusEl.textContent = "完全版を生成しておる…（ページは閉じずに待つのじゃ）";
+    outEl.textContent = "";
 
-      // ★ 真っ白回避：要素が無ければ作る
-      if (!statusEl || !outEl || !actionsEl) {
-        document.body.innerHTML = `
-          <div style="font-family:system-ui;padding:20px;line-height:1.7">
-            <h1>完全版を生成中じゃ…</h1>
-            <div style="padding:12px 14px;background:#fff3f3;border:1px solid #ffd1d1;border-radius:10px;">
-              画面の部品（status/out/actions）が見つからん…。paid-success.html のHTML本体が想定と違う可能性が高いぞ。
-              DevTools Console の "Missing DOM elements" を確認してくれ。
-            </div>
-          </div>
-        `;
-        return;
+    try {
+      const res = await fetch("/api/paid-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(summaryJson),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        outEl.textContent += decoder.decode(value, { stream: true });
       }
-
-      if (!summaryJson) {
-        statusEl.textContent =
-          "このブラウザにデータが見当たらん…。chat.htmlを開いていたのと同じ端末・同じブラウザで戻ってきておるか、localStorageのキー名が一致しているか確認してくれ。";
-        actionsEl.style.display = "block";
-        return;
-      }
-
-      statusEl.textContent = "完全版を生成しておる…（ページは閉じずに待つのじゃ）";
-      outEl.textContent = "";
-
-      try {
-        const res = await fetch("/api/paid-report", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(summaryJson),
-        });
-
-        if (!res.ok) throw new Error(await res.text());
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          outEl.textContent += decoder.decode(value, { stream: true });
-        }
-        statusEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
-      } catch (e) {
-        statusEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
-        outEl.textContent += "\n\n---\n[error]\n" + String(e);
-        actionsEl.style.display = "block";
-      }
+      statusEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
+    } catch (e) {
+      statusEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
+      outEl.textContent += "\n\n---\n[error]\n" + String(e);
+      actionsEl.style.display = "block";
     }
 
-    if (retryBtn) retryBtn.addEventListener("click", run);
-    run();
+    // retry
+    retryBtn.addEventListener("click", () => run());
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", main);
+    document.addEventListener("DOMContentLoaded", run);
   } else {
-    main();
+    run();
   }
 })();
 </script>
+</body>
+</html>
