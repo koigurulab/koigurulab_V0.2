@@ -37,7 +37,7 @@
       letter-spacing: 0.03em;
     }
 
-    /* ヘッダー */
+    /* ヘッダー（ロゴ＋CTAのみ） */
     header {
       position: sticky;
       top: 0;
@@ -53,12 +53,13 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
+      gap: 12px;
     }
     .logo {
       display: flex;
       align-items: center;
       gap: 8px;
+      min-width: 0;
     }
     .logo-mark {
       width: 32px;
@@ -71,11 +72,15 @@
       color: #fff;
       font-size: 18px;
       font-weight: 700;
+      flex: 0 0 auto;
     }
+    .logo-text-wrap{min-width:0;}
     .logo-text-main {
       font-weight: 700;
       letter-spacing: 0.05em;
       font-size: 16px;
+      white-space: nowrap; /* 変な改行防止 */
+      line-height: 1.1;
     }
     .logo-text-sub {
       font-size: 11px;
@@ -83,53 +88,46 @@
       border: 1px solid #fecaca;
       border-radius: 999px;
       padding: 2px 8px;
-      margin-left: 4px;
+      margin-left: 6px;
       background: #fff7f7;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+    }
+    @media (max-width: 420px) {
+      .logo-text-sub { display: none; } /* スマホで詰まるので非表示 */
     }
 
-    .header-nav {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 13px;
-    }
-    .header-link {
-      color: var(--muted);
-      text-decoration: none;
-      padding: 4px 0;
-    }
-    .header-link:hover {
-      color: var(--ink);
-    }
     .header-cta {
-      padding: 8px 14px;
+      padding: 10px 14px;
       border-radius: 999px;
       border: none;
       background: var(--accent);
       color: #fff;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       box-shadow: 0 8px 18px rgba(249, 115, 115, 0.35);
+      text-decoration: none;
+      white-space: nowrap;
+      flex: 0 0 auto;
     }
-    .header-cta:hover {
-      background: var(--accent-dark);
-    }
+    .header-cta:hover { background: var(--accent-dark); }
 
     /* ヒーロー */
     .hero {
       max-width: 960px;
       margin: 0 auto;
-      padding: 36px 16px 56px;
+      padding: 28px 16px 52px;
       display: grid;
       grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-      gap: 32px;
+      gap: 28px;
       align-items: center;
     }
     @media (max-width: 800px) {
       .hero {
         grid-template-columns: minmax(0, 1fr);
-        padding-top: 24px;
+        padding-top: 20px;
       }
     }
 
@@ -145,37 +143,63 @@
       color: #b91c1c;
       margin-bottom: 10px;
     }
+
     .hero-title {
       font-size: 26px;
-      line-height: 1.4;
-      font-weight: 700;
-      margin: 0 0 12px;
+      line-height: 1.35;
+      font-weight: 800;
+      margin: 0 0 10px;
+      letter-spacing: 0.02em;
     }
-    .hero-title span {
-      background: linear-gradient(120deg, #f97373, #fb7185);
-      -webkit-background-clip: text;
-      color: transparent;
+
+    /* 仙人画像＋吹き出し（見出し直下） */
+    .sageRow{
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+      margin: 10px 0 14px;
     }
+    .sageImg{
+      width: 104px;
+      height: auto;
+      flex: 0 0 auto;
+      filter: drop-shadow(0 10px 18px rgba(15,23,42,.10));
+    }
+    .bubble{
+      position: relative;
+      padding: 12px 14px;
+      border-radius: 14px;
+      line-height: 1.55;
+      background: #ffffff;
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.10);
+      color: #111827;
+      font-weight: 600;
+    }
+    .bubble:before{
+      content:"";
+      position:absolute;
+      left:-8px;
+      top:18px;
+      border-width:8px 8px 8px 0;
+      border-style:solid;
+      border-color:transparent rgba(248,113,113,0.25) transparent transparent;
+    }
+    .bubble:after{
+      content:"";
+      position:absolute;
+      left:-7px;
+      top:18px;
+      border-width:8px 8px 8px 0;
+      border-style:solid;
+      border-color:transparent #ffffff transparent transparent;
+    }
+
     .hero-sub {
       font-size: 14px;
       line-height: 1.8;
       color: var(--muted);
-      margin-bottom: 18px;
-      white-space: pre-line;
-    }
-    .hero-badges {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 18px;
-    }
-    .hero-badge {
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid #fecaca;
-      background: #fff;
-      color: #b91c1c;
+      margin: 0 0 16px;
     }
 
     .hero-cta-row {
@@ -186,19 +210,18 @@
       margin-bottom: 8px;
     }
     .hero-cta-main {
-      padding: 11px 22px;
+      padding: 12px 22px;
       border-radius: 999px;
       border: none;
       background: var(--accent);
       color: #fff;
       font-size: 14px;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       box-shadow: 0 12px 28px rgba(249, 115, 115, 0.45);
     }
-    .hero-cta-main:hover {
-      background: var(--accent-dark);
-    }
+    .hero-cta-main:hover { background: var(--accent-dark); }
+
     .hero-cta-sub {
       font-size: 12px;
       color: var(--muted);
@@ -209,13 +232,13 @@
       text-underline-offset: 3px;
       cursor: pointer;
     }
-
     .hero-note {
       font-size: 11px;
       color: var(--muted);
+      margin-top: 10px;
     }
 
-    /* 右側：チャットモック */
+    /* 右側：チャットモック（残す／ただしスマホでは少し下に） */
     .hero-chat-card {
       position: relative;
       background: var(--card);
@@ -227,9 +250,7 @@
       margin-left: auto;
     }
     @media (max-width: 800px) {
-      .hero-chat-card {
-        margin: 0 auto;
-      }
+      .hero-chat-card { margin: 8px auto 0; }
     }
     .hero-chat-header {
       display: flex;
@@ -239,13 +260,8 @@
       font-size: 11px;
       color: var(--muted);
     }
-    .hero-chat-identity {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .hero-chat-identity { display: flex; align-items: center; gap: 6px; }
 
-    /* 仙人アイコン（画像表示） */
     .hero-chat-avatar {
       width: 24px;
       height: 24px;
@@ -263,11 +279,7 @@
       object-fit: cover;
       display: block;
     }
-
-    .hero-chat-name {
-      font-size: 11px;
-      font-weight: 600;
-    }
+    .hero-chat-name { font-size: 11px; font-weight: 600; }
 
     .hero-chat-body {
       background: #fef2f2;
@@ -275,13 +287,8 @@
       padding: 10px 8px 8px;
       margin-bottom: 8px;
     }
-    .hero-chat-row {
-      display: flex;
-      margin: 4px 0;
-    }
-    .hero-chat-row.user {
-      justify-content: flex-end;
-    }
+    .hero-chat-row { display: flex; margin: 4px 0; }
+    .hero-chat-row.user { justify-content: flex-end; }
     .hero-chat-bubble {
       max-width: 78%;
       padding: 7px 9px;
@@ -337,7 +344,7 @@
       box-shadow: 0 8px 22px rgba(15, 23, 42, 0.4);
     }
 
-    /* 共通セクションレイアウト */
+    /* 共通セクションレイアウト（以下は現状維持） */
     .section {
       max-width: 960px;
       margin: 0 auto;
@@ -347,7 +354,6 @@
       border-top: 1px solid #ffe4e6;
     }
 
-    /* 共感ゾーン（問題提起） */
     .section-problem {
       display: grid;
       grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
@@ -355,9 +361,7 @@
       align-items: center;
     }
     @media (max-width: 800px) {
-      .section-problem {
-        grid-template-columns: minmax(0, 1fr);
-      }
+      .section-problem { grid-template-columns: minmax(0, 1fr); }
     }
 
     .section-eyebrow {
@@ -416,16 +420,13 @@
       color: #b91c1c;
     }
 
-    /* サービス紹介 */
     .section-about {
       display: grid;
       grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
       gap: 32px;
     }
     @media (max-width: 800px) {
-      .section-about {
-        grid-template-columns: minmax(0, 1fr);
-      }
+      .section-about { grid-template-columns: minmax(0, 1fr); }
     }
 
     .section-sub {
@@ -476,9 +477,7 @@
       padding-left: 16px;
       margin: 0;
     }
-    .about-card-list li {
-      margin-bottom: 4px;
-    }
+    .about-card-list li { margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -487,19 +486,12 @@
   <div class="header-inner">
     <div class="logo">
       <div class="logo-mark">恋</div>
-      <div>
-        <div class="logo-text-main">恋ぐるラボ</div>
-        <span class="logo-text-sub">恋愛仙人チャット</span>
+      <div class="logo-text-wrap">
+        <div class="logo-text-main">恋ぐるラボ <span class="logo-text-sub">恋愛仙人チャット</span></div>
       </div>
     </div>
-    <nav class="header-nav">
-      <a href="#about" class="header-link">サービス紹介</a>
-      <a href="#howto" class="header-link">使い方</a>
-      <a href="#faq" class="header-link">よくある質問</a>
-      <a href="chat.html" class="header-cta">
-  無料で相談してみる
-</a>
-    </nav>
+
+    <a href="chat.html" class="header-cta">無料で相談してみる</a>
   </div>
 </header>
 
@@ -509,22 +501,24 @@
     <div class="hero-copy-eyebrow">
       <span>考えすぎてしんどい恋愛専用</span>
     </div>
-    <h1 class="hero-title">
-      恋愛で考えすぎて、しんどいあなたへ。<br />
-      <span>「脳内ぐるぐる」を、恋愛仙人が言語化する相談チャット。</span>
-    </h1>
+
+    <h1 class="hero-title">恋愛で考えすぎて、しんどいあなたへ。</h1>
+
+    <!-- ★追加：仙人画像＋吹き出し（案C） -->
+    <div class="sageRow">
+      <img class="sageImg" src="./assets/senin_320.webp" alt="恋愛仙人" />
+      <div class="bubble">
+        状況を整理して、<br />
+        「次に送るLINE」まで一緒に作るぞ。
+      </div>
+    </div>
+
     <p class="hero-sub">
-「LINEの一言」から「次会ったときの空気」まで。
-ぐるぐるしがちな恋のモヤモヤを、
-MBTI×恋愛16タイプにもとづいて、
-感情を否定せずに冷静に言語化する恋愛レポートです。
+      LINEの一言から、次に会ったときの空気まで。<br />
+      いまの状況と気持ちを整理して、次の一手が決まるように言語化します。
     </p>
 
-    <div class="hero-badges">
-      <span class="hero-badge">匿名・無料で相談OK</span>
-      <span class="hero-badge">MBTI × 恋愛16タイプ対応</span>
-      <span class="hero-badge">スクショ撮って振り返れる</span>
-    </div>
+    <!-- ★削除：匿名・無料などのバッジ群（スペース確保） -->
 
     <div class="hero-cta-row" id="start-chat">
       <button class="hero-cta-main" onclick="window.location.href='chat.html'">
@@ -537,20 +531,20 @@ MBTI×恋愛16タイプにもとづいて、
         </span>
       </span>
     </div>
+
     <p class="hero-note">
       ※ 実在の人物とは一切関係ありません。／診断結果はあくまで恋愛の整理用コンテンツです。
     </p>
   </div>
 
-  <!-- 右：チャットモック -->
+  <!-- 右：チャットモック（現状維持） -->
   <div>
     <div class="hero-chat-card">
       <div class="hero-chat-header">
         <div class="hero-chat-identity">
-         <div class="hero-chat-avatar">
-  <img src="./assets/sennin-icon.png" alt="恋愛仙人" style="width:100%;height:100%;border-radius:999px;object-fit:cover;" />
-</div>
-
+          <div class="hero-chat-avatar">
+            <img src="./assets/sennin-icon.png" alt="恋愛仙人" />
+          </div>
           <div>
             <div class="hero-chat-name">恋愛仙人</div>
             <div style="font-size:10px;color:#9ca3af;">オンライン</div>
@@ -604,22 +598,10 @@ MBTI×恋愛16タイプにもとづいて、
     </p>
 
     <ul class="problem-list">
-      <li>
-        <span class="problem-bullet"></span>
-        <span>LINEの一言に、一喜一憂してしまう。</span>
-      </li>
-      <li>
-        <span class="problem-bullet"></span>
-        <span>既読スルーの理由を、何十パターンも考えてしまう。</span>
-      </li>
-      <li>
-        <span class="problem-bullet"></span>
-        <span>友達に相談しても、「気にしすぎだよ」で終わってモヤモヤが残る。</span>
-      </li>
-      <li>
-        <span class="problem-bullet"></span>
-        <span>占いは好きだけど、「結局どうすればいいのか」は分からないまま。</span>
-      </li>
+      <li><span class="problem-bullet"></span><span>LINEの一言に、一喜一憂してしまう。</span></li>
+      <li><span class="problem-bullet"></span><span>既読スルーの理由を、何十パターンも考えてしまう。</span></li>
+      <li><span class="problem-bullet"></span><span>友達に相談しても、「気にしすぎだよ」で終わってモヤモヤが残る。</span></li>
+      <li><span class="problem-bullet"></span><span>占いは好きだけど、「結局どうすればいいのか」は分からないまま。</span></li>
     </ul>
 
     <div class="problem-strong">
@@ -640,7 +622,7 @@ MBTI×恋愛16タイプにもとづいて、
   </div>
 </section>
 
-<!-- サービス紹介 -->
+<!-- サービス紹介（現状維持） -->
 <section id="about" class="section section-about">
   <div>
     <div class="section-eyebrow">恋ぐるラボのしくみ</div>
@@ -699,5 +681,3 @@ MBTI×恋愛16タイプにもとづいて、
 
 </body>
 </html>
-
-
