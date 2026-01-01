@@ -2,28 +2,25 @@
 (function () {
   const qs = new URLSearchParams(location.search);
   const token = qs.get("token");
-  const statusEl = document.getElementById("status");
-  const outEl = document.getElementById("out");
-  const actionsEl = document.getElementById("actions");
-  const retryBtn = document.getElementById("retry");
 
-  function safeJsonParse(raw) {
-    try { return JSON.parse(raw); } catch { return null; }
-  }
+  const statusEl  = document.getElementById("status");
+  const outEl     = document.getElementById("out");
+  const actionsEl = document.getElementById("actions");
+  const retryBtn  = document.getElementById("retry");
+
+  function safeJsonParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
 
   function loadSummary() {
     if (!token) return null;
 
     // 1) 現行（chat.html が保存している想定）
     const v1 = safeJsonParse(localStorage.getItem(`koi_session_${token}`));
-    // koi_session_{token} が { summaryJson, profile, history } の形なら summaryJson を返す
     if (v1 && typeof v1 === "object") {
       if (v1.summaryJson && typeof v1.summaryJson === "object") return v1.summaryJson;
-      // もし中身が summaryJson そのものだった場合にも対応
       if (v1.fortune_traits || v1.profile_snapshot || v1.title) return v1;
     }
 
-    // 2) 旧実装互換（候補を順に探す）
+    // 2) 旧キー互換
     const candidates = [
       `koiguru_paid_summary_${token}`,
       `koi_summaryJson_${token}`,
@@ -33,15 +30,21 @@
       const obj = safeJsonParse(localStorage.getItem(key));
       if (obj && typeof obj === "object") return obj;
     }
-
     return null;
   }
 
   async function run() {
     const summaryJson = loadSummary();
+
+    if (!statusEl || !outEl || !actionsEl) {
+      // HTMLの骨格が壊れてても、ここで落とさない
+      console.error("Missing DOM elements: status/out/actions");
+      return;
+    }
+
     if (!summaryJson) {
       statusEl.textContent =
-        "このブラウザにデータが見当たらん…。chat.html を開いていたのと同じURL（ドメイン）で戻ってきているか、localStorage のキー名が一致しているかを確認してくれ。";
+        "このブラウザにデータが見当たらん…。chat.htmlを開いていたのと同じ端末・同じブラウザで戻ってきておるか、localStorageのキー名が一致しているか確認してくれ。";
       actionsEl.style.display = "block";
       return;
     }
@@ -55,10 +58,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(summaryJson),
       });
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t);
-      }
+
+      if (!res.ok) throw new Error(await res.text());
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -75,7 +76,9 @@
     }
   }
 
-  retryBtn.addEventListener("click", run);
+  // ★ここがポイント：retryが無くても落とさない
+  if (retryBtn) retryBtn.addEventListener("click", run);
+
   run();
 })();
 </script>
