@@ -15,6 +15,7 @@
       --line: #e5e7eb;
     }
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Yu Gothic", "YuGothic",
@@ -23,6 +24,7 @@
       background: radial-gradient(circle at top left, #ffe6ec, #fff7f8 40%, #ffffff 80%);
     }
 
+    /* header（現状踏襲） */
     header {
       position: sticky;
       top: 0;
@@ -44,6 +46,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      min-width: 0;
     }
     .logo-mark {
       width: 32px;
@@ -56,11 +59,14 @@
       color: #fff;
       font-size: 18px;
       font-weight: 700;
+      flex: 0 0 auto;
     }
     .logo-text-main {
       font-weight: 700;
       letter-spacing: 0.05em;
       font-size: 16px;
+      white-space: nowrap;
+      line-height: 1.1;
     }
     .logo-text-sub {
       font-size: 11px;
@@ -68,23 +74,25 @@
       border: 1px solid #fecaca;
       border-radius: 999px;
       padding: 2px 8px;
-      margin-left: 4px;
+      margin-left: 6px;
       background: #fff7f7;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
     }
     .header-nav {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 10px;
       font-size: 13px;
     }
     .header-link {
       color: var(--muted);
       text-decoration: none;
       padding: 4px 0;
+      white-space: nowrap;
     }
-    .header-link:hover {
-      color: var(--ink);
-    }
+    .header-link:hover { color: var(--ink); }
     .header-cta {
       padding: 8px 14px;
       border-radius: 999px;
@@ -95,45 +103,74 @@
       font-weight: 600;
       cursor: pointer;
       box-shadow: 0 8px 18px rgba(249, 115, 115, 0.35);
+      white-space: nowrap;
     }
-    .header-cta:hover {
-      background: var(--accent-dark);
-    }
+    .header-cta:hover { background: var(--accent-dark); }
 
-    .chat-layout {
-      max-width: 960px;
+    /* ★ここが肝：1カラムのページ構造 */
+    main {
+      max-width: 760px;
       margin: 0 auto;
-      padding: 32px 16px 40px;
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-      gap: 28px;
+      padding: 22px 16px 28px;
       min-height: calc(100vh - 80px);
     }
-    @media (max-width: 800px) {
-      .chat-layout {
-        grid-template-columns: minmax(0, 1fr);
-        padding-top: 20px;
-      }
+
+    .intro-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin: 0 0 12px;
+      line-height: 1.35;
     }
 
-    .chat-intro-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 12px;
-      line-height: 1.6;
+    .intro-sageRow{
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+      margin: 8px 0 14px;
     }
-    .chat-intro-lead {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.8;
-      margin-bottom: 18px;
+    .intro-sageImg{
+      width: 88px;
+      height: auto;
+      flex: 0 0 auto;
+      filter: drop-shadow(0 10px 18px rgba(15,23,42,.10));
     }
-    .chat-intro-note {
+    .intro-bubble{
+      position: relative;
+      padding: 12px 14px;
+      border-radius: 14px;
+      line-height: 1.55;
+      background: #ffffff;
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.10);
+      color: #111827;
+      font-weight: 600;
+    }
+    .intro-bubble:before{
+      content:"";
+      position:absolute;
+      left:-8px;
+      top:18px;
+      border-width:8px 8px 8px 0;
+      border-style:solid;
+      border-color:transparent rgba(248,113,113,0.25) transparent transparent;
+    }
+    .intro-bubble:after{
+      content:"";
+      position:absolute;
+      left:-7px;
+      top:18px;
+      border-width:8px 8px 8px 0;
+      border-style:solid;
+      border-color:transparent #ffffff transparent transparent;
+    }
+
+    .intro-note {
       font-size: 12px;
       color: var(--muted);
-      margin-top: 12px;
+      margin: 6px 0 14px;
     }
 
+    /* チャットカード（現行UI踏襲） */
     .chat-card {
       background: var(--card);
       border-radius: 20px;
@@ -142,17 +179,17 @@
       border: 1px solid rgba(248, 113, 113, 0.25);
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 160px);
-      max-height: none;
+      height: calc(100vh - 320px);
+      max-height: 640px;
+      min-height: 420px;
     }
-    @media (max-width: 800px) {
-      .chat-card { height: calc(100vh - 200px); }
+    @media (max-width: 520px) {
+      .chat-card { height: calc(100vh - 340px); min-height: 380px; }
+      .intro-sageImg { width: 76px; }
+      .intro-title { font-size: 18px; }
     }
 
-    .small {
-      color: var(--muted);
-      font-size: 12px;
-    }
+    .small { color: var(--muted); font-size: 12px; }
     .step-hint { margin-top: 6px; }
 
     .chat-box {
@@ -206,10 +243,7 @@
       cursor: pointer;
       font-size: 11px;
     }
-    .choice.secondary {
-      background: #e5e7eb;
-      color: #111827;
-    }
+    .choice.secondary { background: #e5e7eb; color: #111827; }
     .choice:focus { outline: 3px solid #fecaca; }
 
     .composer {
@@ -248,10 +282,7 @@
       white-space: nowrap;
     }
     .chat-send-btn:hover { background: var(--accent-dark); }
-    .chat-send-btn[disabled] {
-      opacity: 0.6;
-      cursor: default;
-    }
+    .chat-send-btn[disabled] { opacity: 0.6; cursor: default; }
   </style>
 </head>
 
@@ -265,6 +296,7 @@
         <span class="logo-text-sub">恋愛仙人チャット</span>
       </div>
     </div>
+
     <nav class="header-nav">
       <a href="index.html" class="header-link">トップに戻る</a>
       <button class="header-cta" onclick="window.location.href='index.html'">LPを見る</button>
@@ -272,39 +304,38 @@
   </div>
 </header>
 
-<main class="chat-layout">
-  <section>
-    <h1 class="chat-intro-title">恋愛仙人に、今の状況をそのまま話してみてください。</h1>
-    <p class="chat-intro-lead">
-      「相手との関係」「最近あった出来事」「いちばんモヤモヤしていること」。<br>
-      雑でもいいので、頭の中にあることをそのまま書いてくれれば大丈夫です。<br><br>
-      文章が苦手なら、<br>
-      「友達の友達／マッチングアプリ」「何回会ったか」「今の距離感」だけでもOKです。
-    </p>
-    <p class="chat-intro-note">
-      ※ ここで入力した内容はブラウザ上のテスト用です。<br>
-      本番環境では、プライバシーに配慮した形で送信されるよう実装します。
-    </p>
-  </section>
+<main>
+  <h1 class="intro-title">恋愛仙人に、今の状況をそのまま話してみてください。</h1>
 
-  <section>
-    <div class="chat-card" id="chat-card">
-      <div class="small">
-        ここからは恋愛仙人とのチャットじゃ。選択肢を押すか、下の入力欄にそのまま書いてくれればよいぞ。
-      </div>
-
-      <div id="chat" class="chat-box"></div>
-      <div id="step-hint" class="small step-hint"></div>
-      <div id="choices" class="choices"></div>
-
-      <div class="composer">
-        <input id="free-input" class="chat-input" placeholder="自由入力はこちら（選択肢がない時や補足に）。" />
-        <button id="send" class="chat-send-btn" type="button">送信</button>
-      </div>
-
-      <div id="status" class="small muted"></div>
+  <div class="intro-sageRow">
+    <img class="intro-sageImg" src="./assets/senin_320.webp" alt="恋愛仙人" />
+    <div class="intro-bubble">
+      わしが質問をしていくから答えてくれ。<br>
+      「相手との関係」「最近あった出来事」「いちばんモヤモヤしていること」など、雑でもええから、<br>
+      頭の中にあることをそのまま書いてくれれば大丈夫じゃ。
     </div>
-  </section>
+  </div>
+
+  <p class="intro-note">
+    ※ 実在の人物とは一切関係ありません。／本サービスは恋愛の整理用コンテンツです。
+  </p>
+
+  <div class="chat-card" id="chat-card">
+    <div class="small">
+      ここからは恋愛仙人とのチャットじゃ。選択肢を押すか、下の入力欄にそのまま書いてくれればよいぞ。
+    </div>
+
+    <div id="chat" class="chat-box"></div>
+    <div id="step-hint" class="small step-hint"></div>
+    <div id="choices" class="choices"></div>
+
+    <div class="composer">
+      <input id="free-input" class="chat-input" placeholder="自由入力はこちら（選択肢がない時や補足に）。" />
+      <button id="send" class="chat-send-btn" type="button">送信</button>
+    </div>
+
+    <div id="status" class="small muted"></div>
+  </div>
 </main>
 
 <script>
@@ -1611,6 +1642,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
