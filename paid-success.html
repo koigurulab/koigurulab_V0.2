@@ -1,84 +1,96 @@
 <script>
 (function () {
-  const qs = new URLSearchParams(location.search);
-  const token = qs.get("token");
+  function main() {
+    const qs = new URLSearchParams(location.search);
+    const token = qs.get("token");
 
-  const statusEl  = document.getElementById("status");
-  const outEl     = document.getElementById("out");
-  const actionsEl = document.getElementById("actions");
-  const retryBtn  = document.getElementById("retry");
+    const statusEl  = document.getElementById("status");
+    const outEl     = document.getElementById("out");
+    const actionsEl = document.getElementById("actions");
+    const retryBtn  = document.getElementById("retry");
 
-  function safeJsonParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
+    function safeJsonParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
 
-  function loadSummary() {
-    if (!token) return null;
+    function loadSummary() {
+      if (!token) return null;
 
-    // 1) 現行（chat.html が保存している想定）
-    const v1 = safeJsonParse(localStorage.getItem(`koi_session_${token}`));
-    if (v1 && typeof v1 === "object") {
-      if (v1.summaryJson && typeof v1.summaryJson === "object") return v1.summaryJson;
-      if (v1.fortune_traits || v1.profile_snapshot || v1.title) return v1;
-    }
-
-    // 2) 旧キー互換
-    const candidates = [
-      `koiguru_paid_summary_${token}`,
-      `koi_summaryJson_${token}`,
-      `koi_paid_summary_${token}`,
-    ];
-    for (const key of candidates) {
-      const obj = safeJsonParse(localStorage.getItem(key));
-      if (obj && typeof obj === "object") return obj;
-    }
-    return null;
-  }
-
-  async function run() {
-    const summaryJson = loadSummary();
-
-    if (!statusEl || !outEl || !actionsEl) {
-      // HTMLの骨格が壊れてても、ここで落とさない
-      console.error("Missing DOM elements: status/out/actions");
-      return;
-    }
-
-    if (!summaryJson) {
-      statusEl.textContent =
-        "このブラウザにデータが見当たらん…。chat.htmlを開いていたのと同じ端末・同じブラウザで戻ってきておるか、localStorageのキー名が一致しているか確認してくれ。";
-      actionsEl.style.display = "block";
-      return;
-    }
-
-    statusEl.textContent = "完全版を生成しておる…（ページは閉じずに待つのじゃ）";
-    outEl.textContent = "";
-
-    try {
-      const res = await fetch("/api/paid-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(summaryJson),
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        outEl.textContent += decoder.decode(value, { stream: true });
+      const v1 = safeJsonParse(localStorage.getItem(`koi_session_${token}`));
+      if (v1 && typeof v1 === "object") {
+        if (v1.summaryJson && typeof v1.summaryJson === "object") return v1.summaryJson;
+        if (v1.fortune_traits || v1.profile_snapshot || v1.title) return v1;
       }
-      statusEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
-    } catch (e) {
-      statusEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
-      outEl.textContent += "\n\n---\n[error]\n" + String(e);
-      actionsEl.style.display = "block";
+
+      const candidates = [
+        `koiguru_paid_summary_${token}`,
+        `koi_summaryJson_${token}`,
+        `koi_paid_summary_${token}`,
+      ];
+      for (const key of candidates) {
+        const obj = safeJsonParse(localStorage.getItem(key));
+        if (obj && typeof obj === "object") return obj;
+      }
+      return null;
     }
+
+    async function run() {
+      const summaryJson = loadSummary();
+
+      // ★ 真っ白回避：要素が無ければ作る
+      if (!statusEl || !outEl || !actionsEl) {
+        document.body.innerHTML = `
+          <div style="font-family:system-ui;padding:20px;line-height:1.7">
+            <h1>完全版を生成中じゃ…</h1>
+            <div style="padding:12px 14px;background:#fff3f3;border:1px solid #ffd1d1;border-radius:10px;">
+              画面の部品（status/out/actions）が見つからん…。paid-success.html のHTML本体が想定と違う可能性が高いぞ。
+              DevTools Console の "Missing DOM elements" を確認してくれ。
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (!summaryJson) {
+        statusEl.textContent =
+          "このブラウザにデータが見当たらん…。chat.htmlを開いていたのと同じ端末・同じブラウザで戻ってきておるか、localStorageのキー名が一致しているか確認してくれ。";
+        actionsEl.style.display = "block";
+        return;
+      }
+
+      statusEl.textContent = "完全版を生成しておる…（ページは閉じずに待つのじゃ）";
+      outEl.textContent = "";
+
+      try {
+        const res = await fetch("/api/paid-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(summaryJson),
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          outEl.textContent += decoder.decode(value, { stream: true });
+        }
+        statusEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
+      } catch (e) {
+        statusEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
+        outEl.textContent += "\n\n---\n[error]\n" + String(e);
+        actionsEl.style.display = "block";
+      }
+    }
+
+    if (retryBtn) retryBtn.addEventListener("click", run);
+    run();
   }
 
-  // ★ここがポイント：retryが無くても落とさない
-  if (retryBtn) retryBtn.addEventListener("click", run);
-
-  run();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", main);
+  } else {
+    main();
+  }
 })();
 </script>
