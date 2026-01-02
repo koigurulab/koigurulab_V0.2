@@ -181,15 +181,15 @@
   flex-direction: column;
 
   /* ここが重要：スマホの実効表示領域に追従 */
-  height: calc(100dvh - 260px);
-  min-height: 520px;
+ height: calc(100dvh - 200px);
+ min-height: 600px;
   max-height: none;
 }
 
 @media (max-width: 520px) {
   .chat-card {
-    height: calc(100dvh - 280px);
-    min-height: 520px;
+    height: calc(100dvh - 220px);
+ min-height: 620px;
   }
 }
 
@@ -458,16 +458,7 @@ async function startCheckout(token){
     }
   });
 })();
-  .chat-card{
-  height: calc(100dvh - 200px); /* ← 260→200 にして+60pxくらい伸ばす */
-  min-height: 600px;            /* ← 最低でも長い状態を保証 */
-}
-@media (max-width:520px){
-  .chat-card{
-    height: calc(100dvh - 220px);
-    min-height: 620px;
-  }
-}
+
 
 /* ===========================
    2) 選択肢 & タイプ定義
@@ -1687,6 +1678,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
