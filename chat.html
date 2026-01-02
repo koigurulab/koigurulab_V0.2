@@ -171,23 +171,27 @@
     }
 
     /* チャットカード（現行UI踏襲） */
-    .chat-card {
-      background: var(--card);
-      border-radius: 20px;
-      padding: 14px 12px;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-      border: 1px solid rgba(248, 113, 113, 0.25);
-      display: flex;
-      flex-direction: column;
-      height: calc(100vh - 320px);
-      max-height: 640px;
-      min-height: 420px;
-    }
-    @media (max-width: 520px) {
-      .chat-card { height: calc(100vh - 340px); min-height: 380px; }
-      .intro-sageImg { width: 76px; }
-      .intro-title { font-size: 18px; }
-    }
+   .chat-card {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 12px 12px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  display: flex;
+  flex-direction: column;
+
+  /* ここが重要：スマホの実効表示領域に追従 */
+  height: calc(100dvh - 260px);
+  min-height: 520px;
+  max-height: none;
+}
+
+@media (max-width: 520px) {
+  .chat-card {
+    height: calc(100dvh - 280px);
+    min-height: 520px;
+  }
+}
 
     .small { color: var(--muted); font-size: 12px; }
     .step-hint { margin-top: 6px; }
@@ -206,14 +210,14 @@
 
     .row { display: flex; margin: 6px 0; }
     .row .bubble {
-      max-width: 82%;
-      padding: 8px 10px;
-      border-radius: 12px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-size: 12px;
-      line-height: 1.7;
-    }
+  max-width: 94%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.75;
+}
     .row.assistant { justify-content: flex-start; }
     .row.assistant .bubble {
       background: #ffffff;
@@ -246,29 +250,34 @@
     .choice.secondary { background: #e5e7eb; color: #111827; }
     .choice:focus { outline: 3px solid #fecaca; }
 
-    .composer {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-      align-items: center;
-    }
-    .composer input { flex: 1; }
+  .composer {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: flex-end;
+}
 
-    .muted { color: var(--muted); }
+/* iOSズーム回避 + textarea自動拡張前提 */
+.chat-input {
+  width: 100%;
+  font-size: 16px;              /* ★これでiPhoneズームしにくくなる */
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+  outline: none;
+  font-family: inherit;
 
-    .chat-input {
-      width: 100%;
-      font-size: 13px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid #fecaca;
-      outline: none;
-      font-family: inherit;
-    }
-    .chat-input:focus {
-      border-color: #fb7185;
-      box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.2);
-    }
+  resize: none;
+  overflow: hidden;             /* 自動伸長のため */
+  min-height: 44px;             /* タップしやすさ */
+  max-height: 160px;            /* 伸びすぎ防止 */
+}
+
+.chat-input:focus {
+  border-color: #fb7185;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.2);
+}
 
     .chat-send-btn {
       padding: 8px 14px;
@@ -329,10 +338,15 @@
     <div id="step-hint" class="small step-hint"></div>
     <div id="choices" class="choices"></div>
 
-    <div class="composer">
-      <input id="free-input" class="chat-input" placeholder="自由入力はこちら（選択肢がない時や補足に）。" />
-      <button id="send" class="chat-send-btn" type="button">送信</button>
-    </div>
+   <div class="composer">
+  <textarea
+    id="free-input"
+    class="chat-input"
+    rows="1"
+    placeholder="自由入力はこちら（選択肢がない時や補足に）。"
+  ></textarea>
+  <button id="send" class="chat-send-btn" type="button">送信</button>
+</div>
 
     <div id="status" class="small muted"></div>
   </div>
@@ -423,6 +437,27 @@ async function startCheckout(token){
   if (!data?.url) throw new Error("CHECKOUT_URL_MISSING");
   window.location.href = data.url;
 }
+  // --- textarea auto-grow + Enter送信（Shift+Enterで改行） ---
+(() => {
+  const ta = document.getElementById("free-input");
+  const sendBtn = document.getElementById("send");
+  if (!ta) return;
+
+  const resize = () => {
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight, 160) + "px";
+  };
+
+  ta.addEventListener("input", resize);
+  window.addEventListener("load", resize);
+
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendBtn?.click();
+    }
+  });
+})();
 
 /* ===========================
    2) 選択肢 & タイプ定義
@@ -1642,6 +1677,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
