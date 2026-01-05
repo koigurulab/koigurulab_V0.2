@@ -5,24 +5,214 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>完全版レポート生成</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; padding: 20px; line-height: 1.7; }
-    .box { max-width: 900px; margin: 0 auto; }
-    .status { padding: 12px 14px; background: #fff3f3; border: 1px solid #ffd1d1; border-radius: 10px; margin-bottom: 16px; }
-    pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid #eee; padding: 14px; border-radius: 10px; min-height: 120px; }
-    button { padding: 10px 14px; border-radius: 10px; border: 0; background: #ff5a7a; color: white; font-weight: 700; cursor: pointer; }
-    a { color: #ff5a7a; }
+    :root{
+      --bg: #fff7f8;
+      --card: #ffffff;
+      --ink: #111827;
+      --muted:#6b7280;
+      --accent:#f97373;
+      --accent-dark:#e45454;
+      --line:#e5e7eb;
+      --shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      color:var(--ink);
+      background: radial-gradient(circle at top left, #ffe6ec, var(--bg) 40%, #ffffff 80%);
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      line-height: 1.8;
+    }
+
+    .main{
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 22px 16px 40px;
+      min-height: 100vh;
+    }
+
+    .title{
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: .02em;
+      margin: 6px 0 14px;
+    }
+    .subnote{
+      color:var(--muted);
+      font-size: 12px;
+      margin: 0 0 14px;
+    }
+
+    .hero{
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+      margin: 10px 0 14px;
+    }
+    .hero img{
+      width: 88px;
+      height: auto;
+      flex: 0 0 auto;
+      filter: drop-shadow(0 10px 18px rgba(15,23,42,.10));
+    }
+    .heroBox{
+      position: relative;
+      background:#fff;
+      border:1px solid rgba(248,113,113,0.25);
+      border-radius:14px;
+      padding:12px 14px;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.10);
+      line-height:1.6;
+      font-weight: 650;
+    }
+    .heroBox:before{
+      content:"";
+      position:absolute;
+      left:-8px;
+      top:18px;
+      border-width:8px 8px 8px 0;
+      border-style:solid;
+      border-color:transparent rgba(248,113,113,0.25) transparent transparent;
+    }
+    .heroBox:after{
+      content:"";
+      position:absolute;
+      left:-7px;
+      top:18px;
+      border-width:8px 8px 8px 0;
+      border-style:solid;
+      border-color:transparent #ffffff transparent transparent;
+    }
+
+    .card{
+      background: var(--card);
+      border:1px solid rgba(248,113,113,0.25);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 14px 14px 18px;
+    }
+
+    .status{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: #fff3f3;
+      border: 1px solid #ffd1d1;
+      border-radius: 14px;
+      margin-bottom: 12px;
+      font-weight: 650;
+    }
+
+    .dots{
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      margin-left: 6px;
+    }
+    .dot{
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(249,115,115,.9);
+      opacity: .25;
+      animation: blink 1.2s infinite ease-in-out;
+    }
+    .dot:nth-child(2){ animation-delay: .15s; }
+    .dot:nth-child(3){ animation-delay: .30s; }
+    @keyframes blink{
+      0%, 100%{ opacity:.25; transform: translateY(0); }
+      50%{ opacity:1; transform: translateY(-1px); }
+    }
+    .dots.is-hidden{ display:none; }
+
+    pre{
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fff;
+      border: 1px solid #ffe4e6;
+      padding: 14px;
+      border-radius: 14px;
+      min-height: 180px;
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.9;
+    }
+
+    .actions{
+      display:none;
+      margin-top: 14px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn{
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 0;
+      background: var(--accent);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(249, 115, 115, 0.35);
+    }
+    .btn:hover{ background: var(--accent-dark); }
+
+    .link{
+      color: var(--accent-dark);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .link:hover{ text-decoration: underline; }
+
+    .metaRow{
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items:center;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 520px){
+      .title{ font-size: 24px; }
+      .hero img{ width: 78px; }
+      pre{ font-size: 14px; }
+    }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h1>完全版を生成中じゃ…</h1>
-    <div id="status" class="status">決済は完了したようじゃ。レポートを組み立てておるぞ。</div>
-    <pre id="out"></pre>
+  <div class="main">
+    <div class="title">完全版を生成中じゃ…</div>
+    <p class="subnote">※ 実在の人物とは一切関係ありません。／本サービスは恋愛の整理用コンテンツです。</p>
 
-    <div id="actions" style="display:none; margin-top:16px;">
-      <button id="retry">もう一度生成する</button>
-      <div style="margin-top:10px;">
-        <a href="/chat.html">チャットへ戻る</a>
+    <div class="hero">
+      <img src="./assets/senin_320.webp" alt="恋愛仙人" />
+      <div class="heroBox" id="progress-copy">
+        決済は完了したようじゃ。<br>
+        いま、仙人が「お主の恋のクセ」「相手との噛み合い」「次の一歩」を、ひとつの完全版に編み直しておる。<br>
+        読み終えた頃には、モヤモヤの“正体”が言葉になっておるはずじゃ。少々待っておれ。
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="status" class="status">
+        <span id="statusText">完全版を生成しておる…（ページは閉じずに待つのじゃ）</span>
+        <span id="dots" class="dots" aria-hidden="true">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </span>
+      </div>
+
+      <pre id="out"></pre>
+
+      <div class="actions" id="actions">
+        <button class="btn" id="retry">もう一度生成する</button>
+        <a class="link" href="/chat.html">チャットへ戻る</a>
+      </div>
+
+      <div class="metaRow">
+        <div id="tokenHint">token: -</div>
+        <div>途中で止まったら「もう一度生成する」を押すのじゃ。</div>
       </div>
     </div>
   </div>
@@ -53,27 +243,40 @@
     const qs = new URLSearchParams(location.search);
     const token = qs.get("token");
 
-    const statusEl  = document.getElementById("status");
-    const outEl     = document.getElementById("out");
-    const actionsEl = document.getElementById("actions");
-    const retryBtn  = document.getElementById("retry");
+    const statusTextEl  = document.getElementById("statusText");
+    const dotsEl        = document.getElementById("dots");
+    const outEl         = document.getElementById("out");
+    const actionsEl     = document.getElementById("actions");
+    const retryBtn      = document.getElementById("retry");
+    const tokenHint     = document.getElementById("tokenHint");
+
+    tokenHint.textContent = "token: " + (token || "-");
 
     // ★ログは token 取得後
     console.log("token:", token);
-    console.log("koi_session:", localStorage.getItem(`koi_session_${token}`));
-    console.log("koi_summaryJson:", localStorage.getItem(`koi_summaryJson_${token}`));
+    if (token) {
+      console.log("koi_session:", localStorage.getItem(`koi_session_${token}`));
+      console.log("koi_summaryJson:", localStorage.getItem(`koi_summaryJson_${token}`));
+    }
+
+    actionsEl.style.display = "none";
+    dotsEl.classList.remove("is-hidden");
+    outEl.textContent = "";
 
     const summaryJson = loadSummary(token);
 
     if (!summaryJson) {
-      statusEl.textContent =
+      dotsEl.classList.add("is-hidden");
+      statusTextEl.textContent =
         "このブラウザにデータが見当たらん…。決済前に使っていたのと同じ端末・同じブラウザで開いておるか確認してくれ。";
-      actionsEl.style.display = "block";
+      actionsEl.style.display = "flex";
       return;
     }
 
-    statusEl.textContent = "完全版を生成しておる…（ページは閉じずに待つのじゃ）";
-    outEl.textContent = "";
+    // 離脱防止：期待感のある文言にする
+    statusTextEl.textContent =
+      "完全版を生成しておる…（お主の「恋のクセ」と「次の一歩」をまとめ直しておるぞ）";
+    dotsEl.classList.remove("is-hidden");
 
     try {
       const res = await fetch("/api/paid-report", {
@@ -82,24 +285,33 @@
         body: JSON.stringify(summaryJson),
       });
 
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(t || ("HTTP " + res.status));
+      }
+      if (!res.body) throw new Error("stream body missing");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         outEl.textContent += decoder.decode(value, { stream: true });
       }
-      statusEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
+
+      dotsEl.classList.add("is-hidden");
+      statusTextEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
+
     } catch (e) {
-      statusEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
+      dotsEl.classList.add("is-hidden");
+      statusTextEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
       outEl.textContent += "\n\n---\n[error]\n" + String(e);
-      actionsEl.style.display = "block";
+      actionsEl.style.display = "flex";
     }
 
-    // retry
-    retryBtn.addEventListener("click", () => run());
+    // retry（同じtokenで再実行）
+    retryBtn.onclick = () => run();
   }
 
   if (document.readyState === "loading") {
