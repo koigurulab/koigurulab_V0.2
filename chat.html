@@ -219,6 +219,17 @@
   font-size: 14px;
   line-height: 1.75;
 }
+    /* typing dots */
+.dots span{
+  display:inline-block;
+  margin-left:4px;
+  animation: blink 1s infinite;
+  opacity:.2;
+}
+.dots span:nth-child(2){ animation-delay: .15s; }
+.dots span:nth-child(3){ animation-delay: .30s; }
+@keyframes blink { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
+    
     .row.assistant { justify-content: flex-start; }
     .row.assistant .bubble {
       background: #ffffff;
@@ -396,6 +407,44 @@ function addUser(text){
   row.appendChild(b);
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
+}
+  /* ===========================
+   1.2) typing吹き出し（2秒超えたら表示 / ログに残さない）
+   =========================== */
+let typingTimer = null;
+let typingRowEl = null;
+
+function showTypingBubble(){
+  if (typingRowEl) return;
+
+  const row = document.createElement("div");
+  row.className = "row assistant typing-row";
+
+  const b = document.createElement("div");
+  b.className = "bubble";
+  b.innerHTML = `仙人が考え中じゃ… <span class="dots"><span>●</span><span>●</span><span>●</span></span>`;
+
+  row.appendChild(b);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+
+  typingRowEl = row;
+}
+
+function hideTypingBubble(){
+  if (typingTimer){
+    clearTimeout(typingTimer);
+    typingTimer = null;
+  }
+  if (typingRowEl){
+    typingRowEl.remove();
+    typingRowEl = null;
+  }
+}
+
+function scheduleTypingBubble(delayMs = 2000){
+  hideTypingBubble(); // 二重表示防止
+  typingTimer = setTimeout(showTypingBubble, delayMs);
 }
 
 /* ===========================
@@ -700,7 +749,9 @@ MBTI: ${d.code}
       statusEl.textContent = "仙人が考え中じゃ…";
 
       try {
+        scheduleTypingBubble(2000);            // ★追加
         const reply = await withRetry(()=>callOpenAI(msgs));
+        hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
         statusEl.textContent = "";
@@ -754,7 +805,9 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
       statusEl.textContent = "仙人が考え中じゃ…";
 
       try {
+        scheduleTypingBubble(2000);            // ★追加
         const reply = await withRetry(()=>callOpenAI(msgs));
+        hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
         statusEl.textContent = "";
@@ -802,7 +855,9 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
       statusEl.textContent = "仙人が考え中じゃ…";
 
       try {
+        scheduleTypingBubble(2000);            // ★追加
         const reply = await withRetry(()=>callOpenAI(msgs));
+        hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
         statusEl.textContent = "";
@@ -855,7 +910,9 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
       statusEl.textContent = "仙人が考え中じゃ…";
 
       try {
+        scheduleTypingBubble(2000);            // ★追加
         const reply = await withRetry(()=>callOpenAI(msgs));
+        hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
         statusEl.textContent = "";
@@ -1374,7 +1431,9 @@ async function startFirstTurn(){
   ];
 
   try{
+    scheduleTypingBubble(2000);            // ★追加
     const reply = await withRetry(()=>callOpenAI(msgs));
+    hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
     addAssistant(reply);
     history.push({role:"user",content:msgs[2].content});
     history.push({role:"assistant",content:reply});
@@ -1536,8 +1595,11 @@ async function endFreeChatAndShowPaywall() {
   statusEl.textContent = "仙人がまとめを用意しておる…";
 
   try {
+    scheduleTypingBubble(2000);
     // 1) summaryJson（設計図）作成（有料と同じ）
     const summaryJson = await fetchPaidSummaryJson();
+     hideTypingBubble();
+
 
     // 2) 無料レポート（切り取り）をストリーム表示
     statusEl.textContent = "仙人が無料レポートを書いておる…";
@@ -1647,7 +1709,9 @@ async function sendFree(){
   ];
 
   try{
+    scheduleTypingBubble(2000);            // ★追加
     const reply = await withRetry(()=>callOpenAI(msgs));
+    hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
     addAssistant(reply);
 
     history.push({role:"user",content:msgs[msgs.length-1].content});
@@ -1692,6 +1756,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
