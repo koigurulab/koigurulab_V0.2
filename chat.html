@@ -669,8 +669,9 @@ async function onAnswer(valueRaw){
 
     await quickAcknowledge(s.key, value);
 
-    idx++;
-    // ★インテーク完了：インテーク用ボタン群を消す
+   idx++;
+
+// ★インテーク完了：インテーク用ボタン群を消す（完了時だけ）
 if (idx >= steps.length) {
   choicesWrap.innerHTML = "";
   choicesWrap.classList.add("is-hidden");
@@ -1756,6 +1757,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
