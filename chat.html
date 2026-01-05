@@ -5,6 +5,7 @@
   <title>恋ぐるラボ｜恋愛仙人チャット</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    .is-hidden { display: none !important; }
     :root {
       --bg: #fff7f8;
       --card: #ffffff;
@@ -620,6 +621,22 @@ async function onAnswer(valueRaw){
     await quickAcknowledge(s.key, value);
 
     idx++;
+    // ★インテーク完了：インテーク用ボタン群を消す
+if (idx >= steps.length) {
+  choicesWrap.innerHTML = "";
+  choicesWrap.classList.add("is-hidden");
+  stepHint.textContent = "";
+}
+
+if (idx < steps.length) {
+  setBusy(false);
+  showAsk();
+} else {
+  statusEl.textContent = "仙人が考え中じゃ…";
+  await startFirstTurn();
+  statusEl.textContent = "";
+  setBusy(false);
+}
     if (idx < steps.length) {
       setBusy(false);
       showAsk();
@@ -1533,6 +1550,8 @@ async function endFreeChatAndShowPaywall() {
     // 3) token発行 → 保存（決済後に有料生成に使う）
     const token = makeToken();
     saveSessionByToken(token, { summaryJson, profile, history });
+    choicesWrap.classList.remove("is-hidden");
+choicesWrap.innerHTML = "";
 
     // 4) 購入ボタン表示
     showPaywallButtons(token);
@@ -1673,6 +1692,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
