@@ -451,12 +451,7 @@ async function startCheckout(token){
   ta.addEventListener("input", resize);
   window.addEventListener("load", resize);
 
-  ta.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendBtn?.click();
-    }
-  });
+
 })();
 
 
@@ -1678,6 +1673,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
