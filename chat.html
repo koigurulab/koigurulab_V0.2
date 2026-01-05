@@ -669,7 +669,7 @@ async function onAnswer(valueRaw){
 
     await quickAcknowledge(s.key, value);
 
-   idx++;
+ idx++;
 
 // ★インテーク完了：インテーク用ボタン群を消す（完了時だけ）
 if (idx >= steps.length) {
@@ -687,15 +687,6 @@ if (idx < steps.length) {
   statusEl.textContent = "";
   setBusy(false);
 }
-    if (idx < steps.length) {
-      setBusy(false);
-      showAsk();
-    } else {
-      statusEl.textContent = "仙人が考え中じゃ…";
-      await startFirstTurn();
-      statusEl.textContent = "";
-      setBusy(false);
-    }
 
   } catch(e){
     console.warn("onAnswer error:", e);
@@ -1757,6 +1748,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
