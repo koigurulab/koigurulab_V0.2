@@ -220,7 +220,44 @@
 <script>
 (function () {
   function safeJsonParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
+  // ===== 進捗コピーを段階的に切り替えるためのタイマー管理 =====
+  let progressTimers = [];
 
+  function clearProgressTimers(){
+    progressTimers.forEach(id => clearTimeout(id));
+    progressTimers = [];
+  }
+
+  function scheduleProgressCopies({ setStatus, setHero }){
+    // まず掃除（runの連打・retryで増殖するのを防ぐ）
+    clearProgressTimers();
+
+    // 0秒：開始（すでに表示済みでも上書きしてOK）
+    setStatus("完全版を生成しておる…（お主の「恋のクセ」と「次の一歩」をまとめ直しておるぞ）");
+
+    // 4秒：骨組み
+    progressTimers.push(setTimeout(() => {
+      setStatus("まずは全体の骨組みを組んでおる…（章立て・論点を整列中じゃ）");
+      setHero("いま、仙人が「お主の恋のクセ」を抽出して、章立てに落としておる。読みやすさも整えるぞ。少々待っておれ。");
+    }, 4000));
+
+    // 10秒：クセ・構図の深掘り
+    progressTimers.push(setTimeout(() => {
+      setStatus("お主の“揺れポイント”を言語化しておる…（ここがいちばん効く部分じゃ）");
+      setHero("次に「お主の揺れのトリガー」と「相手との噛み合い」を整理しておる。モヤモヤの正体が言葉になるはずじゃ。");
+    }, 10000));
+
+    // 18秒：具体化（文案/行動）
+    progressTimers.push(setTimeout(() => {
+      setStatus("最後に“使える形”へ整形しておる…（文案・まとめ・結びを仕上げ中じゃ）");
+      setHero("仕上げに入ったぞ。読み終えた時に『何を大事にするか』が見えるよう、結論まで磨いておる。");
+    }, 18000));
+
+    // 28秒：念押し（長引いたときの離脱防止）
+    progressTimers.push(setTimeout(() => {
+      setStatus("最終チェック中じゃ…（文章の流れ・重複・言い回しを整えておる）");
+    }, 28000));
+  }
   function loadSummary(token) {
     if (!token) return null;
 
@@ -299,12 +336,19 @@
         if (done) break;
         outEl.textContent += decoder.decode(value, { stream: true });
       }
-
+ clearProgressTimers(); // ★追加：進捗タイマー停止
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
 
     } catch (e) {
       dotsEl.classList.add("is-hidden");
+          // ===== 段階的な進捗コピーを開始（fetch前）=====
+    const heroBoxEl = document.getElementById("progress-copy");
+
+    scheduleProgressCopies({
+      setStatus: (t) => { statusTextEl.textContent = t; },
+      setHero:   (t) => { if (heroBoxEl) heroBoxEl.innerHTML = String(t).replace(/\n/g, "<br>"); }
+    });
       statusTextEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
       outEl.textContent += "\n\n---\n[error]\n" + String(e);
       actionsEl.style.display = "flex";
