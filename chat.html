@@ -249,19 +249,56 @@
       gap: 8px;
       margin-top: 8px;
     }
-    .choice {
-      appearance: none;
-      border: none;
-      background: #111827;
-      color: #fff;
-      padding: 6px 10px;
-      border-radius: 999px;
-      cursor: pointer;
-      font-size: 11px;
-    }
-    .choice.secondary { background: #e5e7eb; color: #111827; }
-    .choice:focus { outline: 3px solid #fecaca; }
-
+   /* ===== Choice chips：世界観（桜・和菓子） ===== */
+.choice {
+  appearance: none;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: #fff7f9;
+  color: #7a2f3b;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 18px rgba(248, 113, 113, 0.14);
+  transition: transform .06s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
+}
+.choice:hover {
+  background: #ffe9ef;
+  border-color: rgba(248, 113, 113, 0.55);
+  box-shadow: 0 12px 26px rgba(248, 113, 113, 0.20);
+}
+.choice:active { transform: translateY(1px); }
+.choice:focus-visible {
+  outline: 3px solid rgba(248, 113, 113, 0.28);
+  outline-offset: 2px;
+}
+.choice.secondary {
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  box-shadow: none;
+}
+.choice.secondary:hover {
+  background: #fff7f9;
+  border-color: rgba(248, 113, 113, 0.25);
+}
+.choice:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+    /* 選択済み（押した感） */
+.choice.is-selected {
+  background: linear-gradient(135deg, #f97373, #fb7185);
+  color: #fff;
+  border-color: rgba(248, 113, 113, 0.65);
+  box-shadow: 0 14px 30px rgba(248, 113, 113, 0.30);
+}
+.choice.is-selected:hover { filter: brightness(0.98); }
+    
   .composer {
   display: flex;
   gap: 8px;
@@ -955,7 +992,13 @@ function showAsk(){
       const btn = document.createElement("button");
       btn.className = "choice";
       btn.textContent = label;
-      btn.addEventListener("click", () => onAnswer(label));
+     btn.addEventListener("click", () => {
+  // いったん同じchoices内の選択状態をリセット
+  choicesWrap.querySelectorAll("button.choice").forEach(b => b.classList.remove("is-selected"));
+  // 押したボタンだけ選択状態に
+  btn.classList.add("is-selected");
+  onAnswer(label);
+});
       choicesWrap.appendChild(btn);
     });
     stepHint.textContent = "選択肢を押すか、下の自由入力でも回答できるぞ。";
@@ -1748,6 +1791,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
