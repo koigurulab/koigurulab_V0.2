@@ -459,7 +459,7 @@ function showTypingBubble(){
 
   const b = document.createElement("div");
   b.className = "bubble";
-b.innerHTML = `仙人が考え中じゃ… <span class="dots"><span>●</span><span>●</span><span>●</span></span>`;
+  b.innerHTML = `仙人が考え中じゃ… <span class="dots"><span>●</span><span>●</span><span>●</span></span>`;
 
   row.appendChild(b);
   chat.appendChild(row);
@@ -496,10 +496,10 @@ function saveSessionByToken(token, payload){
   // payload: { summaryJson, profile, history }
   try {
     localStorage.setItem("koi_token", token);
-    localStorage.setItem(koi_summaryJson_${token}, JSON.stringify(payload.summaryJson ?? null));
-    localStorage.setItem(koi_profile_${token}, JSON.stringify(payload.profile ?? null));
-    localStorage.setItem(koi_history_${token}, JSON.stringify(payload.history ?? null));
-    localStorage.setItem(koi_createdAt_${token}, String(Date.now()));
+    localStorage.setItem(`koi_summaryJson_${token}`, JSON.stringify(payload.summaryJson ?? null));
+    localStorage.setItem(`koi_profile_${token}`, JSON.stringify(payload.profile ?? null));
+    localStorage.setItem(`koi_history_${token}`, JSON.stringify(payload.history ?? null));
+    localStorage.setItem(`koi_createdAt_${token}`, String(Date.now()));
   } catch (e) {
     console.warn("localStorage save failed:", e);
   }
@@ -538,7 +538,9 @@ async function startCheckout(token){
   ta.addEventListener("input", resize);
   window.addEventListener("load", resize);
 
+
 })();
+
 
 /* ===========================
    2) 選択肢 & タイプ定義
@@ -615,22 +617,22 @@ const profile = {
    3) ステップ定義（インテーク）
    =========================== */
 const steps = [
-  { key:"name",        kind:"input",  ask:よく来てくれたな。恋愛仙人じゃ。まずはおぬしの名前を教えておくれ },
-  { key:"gender",      kind:"choice", ask:(p)=>${p.name}、よろしくのう。性別はどれじゃ？, choices:GENDER },
-  { key:"selfMBTI",    kind:"choice", ask:お主のMBTIはどれじゃ？,                           choices:MBTI_LIST },
-  { key:"selfLove",    kind:"choice", ask:お主の恋愛16タイプは？,                           choices:LOVE16_LIST },
-  { key:"targetGender",kind:"choice", ask:恋愛対象の性別は？,                               choices:TARGET_GENDER },
-  { key:"targetMBTI",  kind:"choice", ask:相手のMBTIが分かれば教えてくれ,                   choices:MBTI_LIST },
-  { key:"targetLove",  kind:"choice", ask:相手の恋愛16タイプは分かるかの？,                 choices:LOVE16_LIST },
-  { key:"ageRange",    kind:"input",  ask:お主の年齢レンジを教えてくれ（例：20〜22） },
-  { key:"status",      kind:"input",  ask:学生／社会人などの状態は？（例：社会人1〜3年目） },
-  { key:"relation",    kind:"input",  ask:関係性は？（例：片思い／交際◯ヶ月／元カノ など） },
-  { key:"meeting",     kind:"choice", ask:出会い方は？,                                     choices:MEETING },
-  { key:"known",       kind:"input",  ask:知り合ってどれくらい？（例：1〜3ヶ月） },
-  { key:"contact",     kind:"input",  ask:連絡頻度と、どちらからが多い？（例：2〜3日に1回／送るのは：自分からが多い） },
-  { key:"worry",       kind:"input",  ask:いちばん悩んでいるポイントを3行くらいでそのまま書いてくれ。詳細であればあるほど、わしは相談に乗りやすいぞ },
-  { key:"mental",      kind:"input",  ask:今の心の状態は？（例：不安はあるが日常は回る） },
-  { key:"style",       kind:"choice", ask:相談スタイルを選んでくれ。, choices:["1) もやもや整理したい","2) 今後のアクションを決めたい"] }
+  { key:"name",        kind:"input",  ask:`よく来てくれたな。恋愛仙人じゃ。まずはおぬしの名前を教えておくれ` },
+  { key:"gender",      kind:"choice", ask:(p)=>`${p.name}、よろしくのう。性別はどれじゃ？`, choices:GENDER },
+  { key:"selfMBTI",    kind:"choice", ask:`お主のMBTIはどれじゃ？`,                           choices:MBTI_LIST },
+  { key:"selfLove",    kind:"choice", ask:`お主の恋愛16タイプは？`,                           choices:LOVE16_LIST },
+  { key:"targetGender",kind:"choice", ask:`恋愛対象の性別は？`,                               choices:TARGET_GENDER },
+  { key:"targetMBTI",  kind:"choice", ask:`相手のMBTIが分かれば教えてくれ`,                   choices:MBTI_LIST },
+  { key:"targetLove",  kind:"choice", ask:`相手の恋愛16タイプは分かるかの？`,                 choices:LOVE16_LIST },
+  { key:"ageRange",    kind:"input",  ask:`お主の年齢レンジを教えてくれ（例：20〜22）` },
+  { key:"status",      kind:"input",  ask:`学生／社会人などの状態は？（例：社会人1〜3年目）` },
+  { key:"relation",    kind:"input",  ask:`関係性は？（例：片思い／交際◯ヶ月／元カノ など）` },
+  { key:"meeting",     kind:"choice", ask:`出会い方は？`,                                     choices:MEETING },
+  { key:"known",       kind:"input",  ask:`知り合ってどれくらい？（例：1〜3ヶ月）` },
+  { key:"contact",     kind:"input",  ask:`連絡頻度と、どちらからが多い？（例：2〜3日に1回／送るのは：自分からが多い）` },
+  { key:"worry",       kind:"input",  ask:`いちばん悩んでいるポイントを3行くらいでそのまま書いてくれ。詳細であればあるほど、わしは相談に乗りやすいぞ` },
+  { key:"mental",      kind:"input",  ask:`今の心の状態は？（例：不安はあるが日常は回る）` },
+  { key:"style",       kind:"choice", ask:`相談スタイルを選んでくれ。`, choices:["1) もやもや整理したい","2) 今後のアクションを決めたい"] }
 ];
 
 let idx = 0;
@@ -757,11 +759,11 @@ async function quickAcknowledge(key, value){
 ・全体でおおよそ350〜500文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
-          .trim()
+          `.trim()
         },
         {
           role:"user",
-          content: 
+          content: `
 MBTI: ${d.code}
 日本語名: ${d.jp}
 説明: ${d.summary}
@@ -809,11 +811,11 @@ MBTI: ${d.code}
 ・全体で450〜550文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
-          .trim()
+          `.trim()
         },
         {
           role:"user",
-          content: 
+          content: `
 恋愛16タイプ: ${value}
 タイプ説明: ${dLove.summary}
 MBTI: ${dMbti ? dMbti.code : "不明"}
@@ -860,11 +862,11 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 ・全体で300〜450文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
-          .trim()
+          `.trim()
         },
         {
           role:"user",
-          content: 
+          content: `
 相手のMBTI: ${d.code}
 日本語名: ${d.jp}
 説明: ${d.summary}
@@ -914,11 +916,11 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 ・全体で350〜500文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
-          .trim()
+          `.trim()
         },
         {
           role:"user",
-          content: 
+          content: `
 相手の恋愛16タイプ: ${value}
 タイプ説明: ${dLove.summary}
 相手のMBTI: ${dMbti ? dMbti.code : "不明"}
@@ -945,24 +947,24 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
   // ---- フォールバック固定メッセージ ----
   const map = {
-    name:        よし、${value}と呼ぶぞ。肩の力を抜いて話してええのう。,
-    gender:      受け取ったぞ。,
-    selfMBTI:    了解じゃ。タイプ感は頭に入れておくのう。,
-    selfLove:    ふむ、覚えておくぞい。,
-    targetGender:なるほどのう。,
-    targetMBTI:  相手のタイプも頭に入れておくぞ。,
-    targetLove:  相手の恋愛気質も理解したぞい。,
-    ageRange:    うむ、ありがとう。,
-    status:      うむ、状況レンジもOKじゃ。,
-    relation:    了解じゃ。,
-    meeting:     うむ。,
-    known:       ふむふむ。,
-    contact:     受け取った。,
-    worry:       うむ…後ほどここを深掘りしよう。,
-    mental:      なるほどのう。,
+    name:        `よし、${value}と呼ぶぞ。肩の力を抜いて話してええのう。`,
+    gender:      `受け取ったぞ。`,
+    selfMBTI:    `了解じゃ。タイプ感は頭に入れておくのう。`,
+    selfLove:    `ふむ、覚えておくぞい。`,
+    targetGender:`なるほどのう。`,
+    targetMBTI:  `相手のタイプも頭に入れておくぞ。`,
+    targetLove:  `相手の恋愛気質も理解したぞい。`,
+    ageRange:    `うむ、ありがとう。`,
+    status:      `うむ、状況レンジもOKじゃ。`,
+    relation:    `了解じゃ。`,
+    meeting:     `うむ。`,
+    known:       `ふむふむ。`,
+    contact:     `受け取った。`,
+    worry:       `うむ…後ほどここを深掘りしよう。`,
+    mental:      `なるほどのう。`,
     style:       (value.startsWith("2")
-                 ? 了解、今回は「方針決め」寄りで進めるぞ。
-                 : 了解、まずは気持ちの整理を優先じゃ。)
+                 ? `了解、今回は「方針決め」寄りで進めるぞ。`
+                 : `了解、まずは気持ちの整理を優先じゃ。`)
   };
   if (map[key]) addAssistant(map[key]);
 }
@@ -996,6 +998,7 @@ function showAsk(){
     stepHint.textContent = "下の入力欄に書いて『送信』じゃ。";
   }
 }
+
 
 /* ===========================
    7) OpenAI 呼び出し（/api/chat 経由）※429リトライ対応版
@@ -1298,8 +1301,8 @@ function buildSelfSummary(profile){
   const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti].summary : "";
   const dLove = love && LOVE16_DEF[love] ? LOVE16_DEF[love].summary : "";
   let lines = [];
-  if (mbti) lines.push(${mbti}として、${dMbti || "普段から考え方にクセが出やすいタイプ"});
-  if (love) lines.push(恋愛16タイプ「${love}」として、${dLove || "恋になると感情の振れ幅が大きくなりやすい"});
+  if (mbti) lines.push(`${mbti}として、${dMbti || "普段から考え方にクセが出やすいタイプ"}`);
+  if (love) lines.push(`恋愛16タイプ「${love}」として、${dLove || "恋になると感情の振れ幅が大きくなりやすい"}`);
   if (!lines.length) lines.push("タイプ情報が少ないが、感情と理性の両方で悩みやすい傾向がありそう。");
   return lines.join(" / ");
 }
@@ -1310,8 +1313,8 @@ function buildPartnerSummary(profile){
   const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti].summary : "";
   const dLove = love && LOVE16_DEF[love] ? LOVE16_DEF[love].summary : "";
   let lines = [];
-  if (mbti) lines.push(相手は ${mbti} として、${dMbti || "その場の状況を見て動きやすいタイプ"});
-  if (love) lines.push(恋愛16タイプ「${love}」として、${dLove || "恋愛の温度が場面によって揺れやすい"});
+  if (mbti) lines.push(`相手は ${mbti} として、${dMbti || "その場の状況を見て動きやすいタイプ"}`);
+  if (love) lines.push(`恋愛16タイプ「${love}」として、${dLove || "恋愛の温度が場面によって揺れやすい"}`);
   if (!lines.length) lines.push("相手のタイプ情報は少ないが、その時のノリや感覚で動きやすい可能性がある。");
   return lines.join(" / ");
 }
@@ -1319,14 +1322,14 @@ function buildPartnerSummary(profile){
 // dialogSummary を更新
 function initDialogSummary(){
   dialogState.dialogSummary =
-    関係性: ${profile.relation || "不明"} / 出会い: ${profile.meeting || "不明"} /  +
-    悩み: ${profile.worry || "未入力"} / 心の状態: ${profile.mental || "未入力"};
+    `関係性: ${profile.relation || "不明"} / 出会い: ${profile.meeting || "不明"} / ` +
+    `悩み: ${profile.worry || "未入力"} / 心の状態: ${profile.mental || "未入力"}`;
 }
 
 function updateDialogSummary(latestUserText){
   const trimmed = latestUserText.replace(/\s+/g," ").slice(0,80);
   dialogState.dialogSummary =
-    dialogState.dialogSummary +  / ユーザ直近の発言: ${trimmed};
+    dialogState.dialogSummary + ` / ユーザ直近の発言: ${trimmed}`;
 }
 
 // メタ＋今回の発言を user.content として渡す
@@ -1351,6 +1354,7 @@ ${JSON.stringify(meta, null, 2)}
 【今回のユーザ発言】
 ${userText}`;
 }
+
 
 /* ===========================
    9) systemビルダー & メタ生成（引数整合を修正）
@@ -1380,8 +1384,8 @@ function buildSelfSummary(profile){
   const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti].summary : "";
   const dLove = love && LOVE16_DEF[love] ? LOVE16_DEF[love].summary : "";
   let lines = [];
-  if (mbti) lines.push(${mbti}として、${dMbti || "普段から考え方にクセが出やすいタイプ"});
-  if (love) lines.push(恋愛16タイプ「${love}」として、${dLove || "恋になると感情の振れ幅が大きくなりやすい"});
+  if (mbti) lines.push(`${mbti}として、${dMbti || "普段から考え方にクセが出やすいタイプ"}`);
+  if (love) lines.push(`恋愛16タイプ「${love}」として、${dLove || "恋になると感情の振れ幅が大きくなりやすい"}`);
   if (!lines.length) lines.push("タイプ情報が少ないが、感情と理性の両方で悩みやすい傾向がありそう。");
   return lines.join(" / ");
 }
@@ -1392,8 +1396,8 @@ function buildPartnerSummary(profile){
   const dMbti = mbti && MBTI_DEF[mbti] ? MBTI_DEF[mbti].summary : "";
   const dLove = love && LOVE16_DEF[love] ? LOVE16_DEF[love].summary : "";
   let lines = [];
-  if (mbti) lines.push(相手は ${mbti} として、${dMbti || "その場の状況を見て動きやすいタイプ"});
-  if (love) lines.push(恋愛16タイプ「${love}」として、${dLove || "恋愛の温度が場面によって揺れやすい"});
+  if (mbti) lines.push(`相手は ${mbti} として、${dMbti || "その場の状況を見て動きやすいタイプ"}`);
+  if (love) lines.push(`恋愛16タイプ「${love}」として、${dLove || "恋愛の温度が場面によって揺れやすい"}`);
   if (!lines.length) lines.push("相手のタイプ情報は少ないが、その時のノリや感覚で動きやすい可能性がある。");
   return lines.join(" / ");
 }
@@ -1403,14 +1407,14 @@ function initDialogSummary(){
   dialogState.selfSummary    = buildSelfSummary(profile);
   dialogState.partnerSummary = buildPartnerSummary(profile);
   dialogState.dialogSummary =
-    関係性: ${profile.relation || "不明"} / 出会い: ${profile.meeting || "不明"} /  +
-    悩み: ${profile.worry || "未入力"} / 心の状態: ${profile.mental || "未入力"};
+    `関係性: ${profile.relation || "不明"} / 出会い: ${profile.meeting || "不明"} / ` +
+    `悩み: ${profile.worry || "未入力"} / 心の状態: ${profile.mental || "未入力"}`;
 }
 
 function updateDialogSummary(latestUserText){
   const trimmed = String(latestUserText || "").replace(/\s+/g," ").slice(0,80);
   dialogState.dialogSummary =
-    dialogState.dialogSummary +  / ユーザ直近の発言: ${trimmed};
+    dialogState.dialogSummary + ` / ユーザ直近の発言: ${trimmed}`;
 }
 
 // ★引数： (profile, phase, userText, opt) に統一
@@ -1445,8 +1449,8 @@ async function startFirstTurn(){
   dialogState.questionTheme = "今いちばん強く抱いていそうな不安";
 
   const firstUserText =
-    いちばん悩んでいること: ${profile.worry || "未入力"}\n +
-    今の心の状態: ${profile.mental || "未入力"};
+    `いちばん悩んでいること: ${profile.worry || "未入力"}\n` +
+    `今の心の状態: ${profile.mental || "未入力"}`;
 
   updateDialogSummary(firstUserText);
 
@@ -1527,14 +1531,14 @@ function makeToken() {
 function saveSessionByToken(token, payload) {
   try {
     // 新方式：まとめて
-    localStorage.setItem(koi_session_${token}, JSON.stringify(payload));
+    localStorage.setItem(`koi_session_${token}`, JSON.stringify(payload));
 
     // 旧方式：分割（互換）
     localStorage.setItem("koi_token", token);
-    localStorage.setItem(koi_summaryJson_${token}, JSON.stringify(payload.summaryJson ?? null));
-    localStorage.setItem(koi_profile_${token}, JSON.stringify(payload.profile ?? null));
-    localStorage.setItem(koi_history_${token}, JSON.stringify(payload.history ?? null));
-    localStorage.setItem(koi_createdAt_${token}, String(Date.now()));
+    localStorage.setItem(`koi_summaryJson_${token}`, JSON.stringify(payload.summaryJson ?? null));
+    localStorage.setItem(`koi_profile_${token}`, JSON.stringify(payload.profile ?? null));
+    localStorage.setItem(`koi_history_${token}`, JSON.stringify(payload.history ?? null));
+    localStorage.setItem(`koi_createdAt_${token}`, String(Date.now()));
   } catch (e) {
     console.warn("localStorage save failed:", e);
   }
@@ -1542,16 +1546,16 @@ function saveSessionByToken(token, payload) {
 
 function loadSessionByToken(token) {
   // 新方式
-  const raw = localStorage.getItem(koi_session_${token});
+  const raw = localStorage.getItem(`koi_session_${token}`);
   if (raw) {
     try { return JSON.parse(raw); } catch {}
   }
 
   // 旧方式（互換）
   try {
-    const summaryJson = JSON.parse(localStorage.getItem(koi_summaryJson_${token}) || "null");
-    const profile_    = JSON.parse(localStorage.getItem(koi_profile_${token}) || "null");
-    const history_    = JSON.parse(localStorage.getItem(koi_history_${token}) || "null");
+    const summaryJson = JSON.parse(localStorage.getItem(`koi_summaryJson_${token}`) || "null");
+    const profile_    = JSON.parse(localStorage.getItem(`koi_profile_${token}`) || "null");
+    const history_    = JSON.parse(localStorage.getItem(`koi_history_${token}`) || "null");
     if (!summaryJson && !profile_ && !history_) return null;
     return { summaryJson, profile: profile_, history: history_ };
   } catch {
@@ -1566,7 +1570,7 @@ async function startCheckout(token) {
     body: JSON.stringify({ token }),
   });
   const text = await r.text();
-  if (!r.ok) throw new Error(checkout-session error: ${r.status} ${text});
+  if (!r.ok) throw new Error(`checkout-session error: ${r.status} ${text}`);
   const data = JSON.parse(text);
   if (!data?.url) throw new Error("checkout-session: missing url");
   window.location.href = data.url;
@@ -1579,7 +1583,7 @@ async function fetchPaidSummaryJson() {
     body: JSON.stringify({ profile, history }),
   });
   const raw = await resp.text();
-  if (!resp.ok) throw new Error(paid-summary error: ${resp.status} ${raw});
+  if (!resp.ok) throw new Error(`paid-summary error: ${resp.status} ${raw}`);
   return JSON.parse(raw);
 }
 
@@ -1592,7 +1596,7 @@ async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
 
   if (!resp.ok || !resp.body) {
     const t = await resp.text().catch(() => "");
-    throw new Error(${endpoint} error: ${resp.status} ${t});
+    throw new Error(`${endpoint} error: ${resp.status} ${t}`);
   }
 
   const bubble = addAssistantStreamBubble(bubbleTitle || "");
@@ -1625,6 +1629,7 @@ async function endFreeChatAndShowPaywall() {
     // 1) summaryJson（設計図）作成（有料と同じ）
     const summaryJson = await fetchPaidSummaryJson();
      hideTypingBubble();
+
 
     // 2) 無料レポート（切り取り）をストリーム表示
     statusEl.textContent = "仙人が無料レポートを書いておる…";
@@ -1680,7 +1685,7 @@ function showPaywallButtons(token) {
   openPaidBtn.className = "choice secondary";
   openPaidBtn.textContent = "購入済みなら有料レポートを表示（token付き）";
   openPaidBtn.addEventListener("click", () => {
-    window.location.href = paid-success.html?token=${encodeURIComponent(token)};
+    window.location.href = `paid-success.html?token=${encodeURIComponent(token)}`;
   });
 
   const laterBtn = document.createElement("button");
@@ -1757,6 +1762,7 @@ async function sendFree(){
   }
 }
 
+
 /* ===========================
    16) イベント & 起動（Enter送信しない／クリック送信）
    =========================== */
@@ -1780,4 +1786,22 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
