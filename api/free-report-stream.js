@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     if (res.flushHeaders) res.flushHeaders();
 
     // Free側のモデル（まずは mini 推奨。必要なら gpt-4.1 に上げる）
-    const model = (process.env.FREE_REPORT_MODEL || "gpt-4.1-mini").trim();
+    const model = (process.env.FREE_REPORT_MODEL || "gpt-4.1").trim();
 
   
     const SYSTEM_PROMPT = `
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
 出力の章立て（固定・この順番で必ず出す）：
 - タイトル（1行）
-- 【はじめに】はじめに：いまのお主の現在地
+- 【はじめに】いまのお主の現在地
 - 【0章】お主の恋の5つのクセ（今回は2つだけ）
   ※fortune_traits があるなら、そのうち上から2件だけを使う
   ※evidenceは「例えば〜」として自然文に溶かし込み、evidence: 形式では出さない
@@ -95,10 +95,10 @@ D) しんどさの正体（1〜2文）：このクセが長引かせる理由を
 【7】今後のアクションプラン：3日・1週間・1ヶ月で、現実的に動ける手順に落とすぞい。「恋愛仙人とたくさん話したけど、実際このあとどうしたらいいの？？」というお主の悩みが解決できれば幸いじゃ。
 【結び】仙人からの最後のひと言
 
-文字量（目安）：
-- 全体で 3000〜4000 文字程度（短すぎ禁止）
+文字量：
+- 全体で 3000〜4000 文字（短すぎ禁止）
 - 【はじめに】800〜1000字
-- 【0章】800〜1000字（2つのクセを厚めに）
+- 【0章】1000〜1400字（2つのクセを厚めに）
 - 【1】800〜1000字
 - 【有料版で分かること】350〜450字
 
