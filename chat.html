@@ -773,16 +773,17 @@ MBTI: ${d.code}
       
       statusEl.textContent = "仙人が考え中じゃ…";
 
-      try {
-        scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs));
-        hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
-        addAssistant(reply.trim());
-      } finally {
-        statusEl.textContent = "";
-      }
-      return;
-    }
+     try {
+  scheduleTypingBubble(2000);
+  const userText = `[INTAKE] key=selfMBTI value=${value}`;
+  const reply = await withRetry(() => callOpenAI(userText));
+  hideTypingBubble();
+  addAssistant(reply.trim());
+} finally {
+  statusEl.textContent = "";
+}
+return;
+       }
 
     // --- 自分の恋愛16タイプ ---
     if (key === "selfLove" && LOVE16_DEF[value]) {
@@ -825,16 +826,17 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
       ];
       statusEl.textContent = "仙人が考え中じゃ…";
 
-      try {
-        scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs));
-        hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
-        addAssistant(reply.trim());
-      } finally {
-        statusEl.textContent = "";
+    try {
+  scheduleTypingBubble(2000);
+  const userText = `[INTAKE] key=selfLove value=${value}`;
+  const reply = await withRetry(() => callOpenAI(userText));
+  hideTypingBubble();
+  addAssistant(reply.trim());
+} finally {
+  statusEl.textContent = "";
+}
+return;
       }
-      return;
-    }
 
     // --- 相手の MBTI ---
     if (key === "targetMBTI" && MBTI_DEF[value]) {
@@ -875,17 +877,17 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
       ];
       statusEl.textContent = "仙人が考え中じゃ…";
 
-      try {
-        scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs));
-        hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
-        addAssistant(reply.trim());
-      } finally {
-        statusEl.textContent = "";
+    try {
+  scheduleTypingBubble(2000);
+  const userText = `[INTAKE] key=targetMBTI value=${value}`;
+  const reply = await withRetry(() => callOpenAI(userText));
+  hideTypingBubble();
+  addAssistant(reply.trim());
+} finally {
+  statusEl.textContent = "";
+}
+return;
       }
-      return;
-    }
-
     // --- 相手の恋愛16タイプ ---
     if (key === "targetLove" && LOVE16_DEF[value]) {
       const dLove = LOVE16_DEF[value];
@@ -930,15 +932,16 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
       ];
       statusEl.textContent = "仙人が考え中じゃ…";
 
-      try {
-        scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs));
-        hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
-        addAssistant(reply.trim());
-      } finally {
-        statusEl.textContent = "";
-      }
-      return;
+try {
+  scheduleTypingBubble(2000);
+  const userText = `[INTAKE] key=targetLove value=${value}`;
+  const reply = await withRetry(() => callOpenAI(userText));
+  hideTypingBubble();
+  addAssistant(reply.trim());
+} finally {
+  statusEl.textContent = "";
+}
+return;
     }
 
   } catch(e){
@@ -1003,22 +1006,33 @@ function showAsk(){
 /* ===========================
    7) OpenAI 呼び出し（/api/chat 経由）※429リトライ対応版
    =========================== */
-async function callOpenAI(messages){
+async function callOpenAI(userText){
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({
+      userText,
+      // サーバが参照できるよう必要最小限だけ送る
+      profile: {
+        name: profile.name,
+        gender: profile.gender,
+        selfMBTI: profile.selfMBTI,
+        selfLove: profile.selfLove,
+        targetMBTI: profile.targetMBTI,
+        targetLove: profile.targetLove,
+        relation: profile.relation,
+        meeting: profile.meeting,
+        worry: profile.worry,
+        mental: profile.mental,
+        style: profile.style
+      }
+    }),
   });
 
   const text = await res.text();
 
-  // 429はリトライ対象
-  if (res.status === 429) {
-    throw new Error("BUSY");
-  }
-
+  if (res.status === 429) throw new Error("BUSY");
   if (!res.ok) {
-    console.log("=== /api/chat raw response ===");
     console.log("status:", res.status);
     console.log("body:", text);
     throw new Error("API_ERROR");
@@ -1027,7 +1041,6 @@ async function callOpenAI(messages){
   const data = JSON.parse(text);
   return data.content || "";
 }
-
 /* ===========================
    8) 共通 system ＋ フェーズ別 system
    =========================== */
@@ -1445,8 +1458,6 @@ ${userText}`;
    =========================== */
 async function startFirstTurn(){
   initDialogSummary();
-  const phase = "F";
-  dialogState.questionTheme = "今いちばん強く抱いていそうな不安";
 
   const firstUserText =
     `いちばん悩んでいること: ${profile.worry || "未入力"}\n` +
@@ -1454,22 +1465,21 @@ async function startFirstTurn(){
 
   updateDialogSummary(firstUserText);
 
-  const msgs = [
-    { role:"system", content: buildCommonSystem(profile) },
-    { role:"system", content: buildPhaseSystem(phase, profile) },
-    { role:"user",   content: buildUserMeta(profile, phase, firstUserText, { firstTurn:true }) }
-  ];
-
   try{
-    scheduleTypingBubble(2000);            // ★追加
-    const reply = await withRetry(()=>callOpenAI(msgs));
-    hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
+    scheduleTypingBubble(2000);
+    const reply = await withRetry(() => callOpenAI(firstUserText));
+    hideTypingBubble();
     addAssistant(reply);
-    history.push({role:"user",content:msgs[2].content});
-    history.push({role:"assistant",content:reply});
-  }catch(e){
+
+    // 履歴は軽量に保持（まずはこの形でOK）
+    history.push({ role:"user", content:firstUserText });
+    history.push({ role:"assistant", content:reply });
+
+  } catch(e){
     console.warn("first turn error:", e);
     addAssistant("今は少し調子が悪いようじゃ…時間をおいて試してくれんかのう。");
+  } finally {
+    statusEl.textContent = "";
   }
 }
 
@@ -1739,27 +1749,27 @@ async function sendFree(){
   ];
 
   try{
-    scheduleTypingBubble(2000);            // ★追加
-    const reply = await withRetry(()=>callOpenAI(msgs));
-    hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
-    addAssistant(reply);
+  scheduleTypingBubble(2000);
+  const reply = await withRetry(() => callOpenAI(text));
+  hideTypingBubble();
+  addAssistant(reply);
 
-    history.push({role:"user",content:msgs[msgs.length-1].content});
-    history.push({role:"assistant",content:reply});
+  history.push({ role:"user", content:text });
+  history.push({ role:"assistant", content:reply });
 
-    // ★8回目の返信が出た後：無料レポ → 課金導線 → 入力ロック
-    if (nextTurn === MAX_TURNS) {
-      await endFreeChatAndShowPaywall();
-      return;
-    }
-
-  } catch(e){
-    console.warn("chat error:", e);
-    addAssistant("今は他の人の相談に乗っておってな、少し時間をおいてからもう一度頼むのじゃ。");
-  } finally {
-    statusEl.textContent = "";
-    setBusy(false);
+  // ★8回目の返信が出た後：無料レポ → 課金導線 → 入力ロック
+  if (nextTurn === MAX_TURNS) {
+    await endFreeChatAndShowPaywall();
+    return;
   }
+
+} catch(e){
+  console.warn("chat error:", e);
+  addAssistant("今は他の人の相談に乗っておってな、少し時間をおいてからもう一度頼むのじゃ。");
+} finally {
+  statusEl.textContent = "";
+  setBusy(false);
+}
 }
 
 
@@ -1786,6 +1796,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
