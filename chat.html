@@ -1662,7 +1662,20 @@ choicesWrap.innerHTML = "";
 function showPaywallButtons(token) {
   choicesWrap.innerHTML = "";
 
-  addAssistant("…ふむ、今日はここまでにしておこうかのう。無料版はここまでじゃ。続きの『有料レポート（完全版）』は購入後に生成して渡すぞい。");
+   // ★注意1行（最重要：別端末/別ブラウザ事故を防ぐ）
+  const warn = document.createElement("div");
+  warn.style.margin = "10px 0";
+  warn.style.padding = "10px 12px";
+  warn.style.borderRadius = "12px";
+  warn.style.border = "1px solid rgba(249, 115, 115, 0.35)";
+  warn.style.background = "rgba(255, 228, 230, 0.65)";
+  warn.style.fontWeight = "700";
+  warn.style.lineHeight = "1.6";
+  warn.textContent =
+    "※この端末・このブラウザのまま決済完了まで進むのじゃ（Safari/Chrome切替・シークレットモード・端末変更はNGじゃ）";
+  choicesWrap.appendChild(warn);
+
+  addAssistant("…ふむ、今日はここまでにしておこうかのう。無料版はここまでじゃ。続きの『有料レポート（完全版）』は購入後にわしが丹精込めて書いて渡すぞい。");
 
   const buyBtn = document.createElement("button");
   buyBtn.className = "choice";
@@ -1681,12 +1694,7 @@ function showPaywallButtons(token) {
     }
   });
 
-  const openPaidBtn = document.createElement("button");
-  openPaidBtn.className = "choice secondary";
-  openPaidBtn.textContent = "購入済みなら有料レポートを表示（token付き）";
-  openPaidBtn.addEventListener("click", () => {
-    window.location.href = `paid-success.html?token=${encodeURIComponent(token)}`;
-  });
+
 
   const laterBtn = document.createElement("button");
   laterBtn.className = "choice secondary";
@@ -1697,7 +1705,6 @@ function showPaywallButtons(token) {
   });
 
   choicesWrap.appendChild(buyBtn);
-  choicesWrap.appendChild(openPaidBtn);
   choicesWrap.appendChild(laterBtn);
 }
 
@@ -1786,6 +1793,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
