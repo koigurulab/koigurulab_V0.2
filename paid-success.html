@@ -156,6 +156,11 @@
       box-shadow: 0 8px 18px rgba(249, 115, 115, 0.35);
     }
     .btn:hover{ background: var(--accent-dark); }
+    .btn:disabled{
+      opacity: .55;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
 
     .link{
       color: var(--accent-dark);
@@ -172,6 +177,7 @@
       margin-top: 10px;
       color: var(--muted);
       font-size: 12px;
+      flex-wrap: wrap;
     }
 
     @media (max-width: 520px){
@@ -212,7 +218,7 @@
 
       <div class="metaRow">
         <div id="tokenHint">token: -</div>
-        <div>途中で止まったら「もう一度生成する」を押すのじゃ。</div>
+        <div id="retryHint">途中で止まったら「もう一度生成する」を押すのじゃ。（最大2回）</div>
       </div>
     </div>
   </div>
@@ -220,6 +226,32 @@
 <script>
 (function () {
   function safeJsonParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
+
+  // ===== 多重生成抑止（同時実行 + リロード対策）=====
+  let isRunning = false;
+  const MAX_RETRY = 2;
+
+  function doneKey(token){ return `koi_paid_done_${token}`; }
+  function retryKey(token){ return `koi_paid_retry_${token}`; }
+
+  function getRetryCount(token){
+    const n = Number(localStorage.getItem(retryKey(token)) || "0");
+    return Number.isFinite(n) ? n : 0;
+  }
+  function incRetryCount(token){
+    const n = getRetryCount(token) + 1;
+    localStorage.setItem(retryKey(token), String(n));
+    return n;
+  }
+  function setDone(token){
+    localStorage.setItem(doneKey(token), "1");
+  }
+  function isDone(token){
+    return localStorage.getItem(doneKey(token)) === "1";
+  }
+  function resetRetries(token){
+    localStorage.removeItem(retryKey(token));
+  }
 
   // ===== 進捗コピーを段階的に切り替えるためのタイマー管理 =====
   let progressTimers = [];
@@ -269,7 +301,11 @@
     return null;
   }
 
-  async function run() {
+  async function run(opts = { fromRetry: false }) {
+    // 同時実行ガード（ダブルクリック/二重イベント等）
+    if (isRunning) return;
+    isRunning = true;
+
     const qs = new URLSearchParams(location.search);
     const token = qs.get("token");
     const sessionId = qs.get("session_id");
@@ -280,12 +316,14 @@
     const actionsEl     = document.getElementById("actions");
     const retryBtn      = document.getElementById("retry");
     const tokenHint     = document.getElementById("tokenHint");
+    const retryHint     = document.getElementById("retryHint");
     const heroBoxEl     = document.getElementById("progress-copy");
 
-    tokenHint.textContent = "token: " + (token || "-") + " / session_id: " + (sessionId || "-");
-
+    // UI初期化
     actionsEl.style.display = "none";
     dotsEl.classList.remove("is-hidden");
+
+    tokenHint.textContent = "token: " + (token || "-") + " / session_id: " + (sessionId || "-");
     outEl.textContent = "";
 
     // token/session_id 必須（直アクセス対策）
@@ -294,7 +332,30 @@
       statusTextEl.textContent =
         "決済情報が足りんようじゃ…。token と session_id が見当たらん。決済完了ページから開いておるか確認してくれ。";
       actionsEl.style.display = "flex";
+      isRunning = false;
       return;
+    }
+
+    // リロード等で再実行されるのを抑止（明示的retry以外）
+    if (!opts.fromRetry && isDone(token)) {
+      dotsEl.classList.add("is-hidden");
+      statusTextEl.textContent =
+        "この端末では、すでに完全版の生成が完了しておるようじゃ。下の「もう一度生成する」で再生成もできるぞい。";
+      const cnt = getRetryCount(token);
+      retryHint.textContent = `途中で止まったら「もう一度生成する」を押すのじゃ。（最大2回／現在 ${cnt} 回）`;
+      actionsEl.style.display = "flex";
+      isRunning = false;
+      return;
+    }
+
+    // retry上限の制御
+    const currentRetry = getRetryCount(token);
+    retryHint.textContent = `途中で止まったら「もう一度生成する」を押すのじゃ。（最大2回／現在 ${currentRetry} 回）`;
+    if (currentRetry >= MAX_RETRY) {
+      retryBtn.disabled = true;
+      retryHint.textContent = `再生成回数の上限（${MAX_RETRY}回）に達したようじゃ。時間をおいて再度お試しください。`;
+    } else {
+      retryBtn.disabled = false;
     }
 
     // 先にサーバ側で Stripe 決済を検証
@@ -317,6 +378,7 @@
         outEl.textContent =
           "\n\n---\n[verify-paid]\n" + JSON.stringify(vdata || { error: "verify failed" }, null, 2);
         actionsEl.style.display = "flex";
+        isRunning = false;
         return;
       }
     } catch (e) {
@@ -325,6 +387,7 @@
         "決済検証に失敗したようじゃ。通信状況を確認して、もう一度試してくれ。";
       outEl.textContent += "\n\n---\n[verify-paid error]\n" + String(e);
       actionsEl.style.display = "flex";
+      isRunning = false;
       return;
     }
 
@@ -350,6 +413,7 @@
       statusTextEl.textContent =
         "このブラウザにデータが見当たらん…。決済前に使っていたのと同じ端末・同じブラウザで開いておるか確認してくれ。";
       actionsEl.style.display = "flex";
+      isRunning = false;
       return;
     }
 
@@ -379,22 +443,49 @@
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
 
+      // ✅ 完了フラグ（リロードで再生成されない）
+      setDone(token);
+      // 成功したらretry回数をリセット（任意：運用が楽）
+      resetRetries(token);
+
     } catch (e) {
       clearProgressTimers();
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
       outEl.textContent += "\n\n---\n[error]\n" + String(e);
       actionsEl.style.display = "flex";
+    } finally {
+      isRunning = false;
     }
 
     // retry（同じtokenで再実行）
-    retryBtn.onclick = () => run();
+    retryBtn.onclick = async () => {
+      if (!token) return;
+
+      const cnt = getRetryCount(token);
+      if (cnt >= MAX_RETRY) {
+        retryBtn.disabled = true;
+        const statusTextEl2 = document.getElementById("statusText");
+        const retryHint2 = document.getElementById("retryHint");
+        if (retryHint2) retryHint2.textContent = `再生成回数の上限（${MAX_RETRY}回）に達したようじゃ。時間をおいて再度お試しください。`;
+        if (statusTextEl2) statusTextEl2.textContent = "これ以上の再生成はできんようじゃ（上限に到達）。";
+        return;
+      }
+
+      // retryカウントを増やしてから再実行
+      const next = incRetryCount(token);
+      const retryHintEl = document.getElementById("retryHint");
+      if (retryHintEl) retryHintEl.textContent = `途中で止まったら「もう一度生成する」を押すのじゃ。（最大2回／現在 ${next} 回）`;
+
+      // 再実行（fromRetry扱いにする）
+      await run({ fromRetry: true });
+    };
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run);
+    document.addEventListener("DOMContentLoaded", () => run({ fromRetry: false }));
   } else {
-    run();
+    run({ fromRetry: false });
   }
 })();
 </script>
