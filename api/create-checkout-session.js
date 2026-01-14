@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     }
 
     // 成功/キャンセルの戻り先（同一ドメイン）
-    const successUrl = `${appUrl}/paid-success.html?token=${encodeURIComponent(token)}`;
+    const successUrl = `${appUrl}/paid-success.html?token=${encodeURIComponent(token)}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${appUrl}/paid-cancel.html?token=${encodeURIComponent(token)}`;
 
     // Stripe REST APIでCheckout Session作成（SDK不要）
