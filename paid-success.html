@@ -102,6 +102,7 @@
       border-radius: 14px;
       margin-bottom: 12px;
       font-weight: 650;
+      flex-wrap: wrap;
     }
 
     .dots{
@@ -144,6 +145,7 @@
       margin-top: 14px;
       gap: 10px;
       flex-wrap: wrap;
+      align-items: center;
     }
     .btn{
       padding: 10px 14px;
@@ -160,6 +162,16 @@
       opacity: .55;
       cursor: not-allowed;
       box-shadow: none;
+    }
+    .btn.secondary{
+      background: #ffffff;
+      color: var(--accent-dark);
+      border: 1px solid rgba(248,113,113,0.35);
+      box-shadow: none;
+      font-weight: 800;
+    }
+    .btn.secondary:hover{
+      background: #fff3f3;
     }
 
     .link{
@@ -184,6 +196,28 @@
       .title{ font-size: 24px; }
       .hero img{ width: 78px; }
       pre{ font-size: 14px; }
+    }
+
+    /* ===== PDF保存（印刷）用：余計なUIを消す ===== */
+    @media print{
+      body{ background:#fff !important; }
+      .subnote, .hero, #status, #actions, .metaRow { display:none !important; }
+      .card{
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      .main{
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+      pre{
+        border: none !important;
+        padding: 0 !important;
+        min-height: auto !important;
+        font-size: 12.5pt !important;
+        line-height: 1.75 !important;
+      }
     }
   </style>
 </head>
@@ -213,6 +247,12 @@
 
       <div class="actions" id="actions">
         <button class="btn" id="retry">もう一度生成する</button>
+
+        <!-- ✅ 追加：保存/コピー -->
+        <button class="btn secondary" id="copyBtn">全文コピー</button>
+        <button class="btn secondary" id="saveTxtBtn">TXTで保存</button>
+        <button class="btn secondary" id="savePdfBtn">PDFで保存</button>
+
         <a class="link" href="/chat.html">チャットへ戻る</a>
       </div>
 
@@ -301,6 +341,52 @@
     return null;
   }
 
+  // ===== 保存/コピー系ユーティリティ =====
+  function shortToken(token){
+    if (!token) return "unknown";
+    return String(token).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 6) || "token";
+  }
+  function todayStr(){
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const dd = String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${dd}`;
+  }
+
+  async function copyToClipboard(text){
+    const t = String(text || "");
+    if (!t.trim()) throw new Error("empty");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(t);
+      return;
+    }
+    // fallback（古い環境向け）
+    const ta = document.createElement("textarea");
+    ta.value = t;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    ta.style.top = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (!ok) throw new Error("copy failed");
+  }
+
+  function downloadTextAsFile(filename, text){
+    const blob = new Blob([String(text || "")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
   async function run(opts = { fromRetry: false }) {
     // 同時実行ガード（ダブルクリック/二重イベント等）
     if (isRunning) return;
@@ -319,12 +405,21 @@
     const retryHint     = document.getElementById("retryHint");
     const heroBoxEl     = document.getElementById("progress-copy");
 
+    // ✅ 追加ボタン
+    const copyBtn       = document.getElementById("copyBtn");
+    const saveTxtBtn    = document.getElementById("saveTxtBtn");
+    const savePdfBtn    = document.getElementById("savePdfBtn");
+
     // UI初期化
     actionsEl.style.display = "none";
     dotsEl.classList.remove("is-hidden");
-
     tokenHint.textContent = "token: " + (token || "-") + " / session_id: " + (sessionId || "-");
     outEl.textContent = "";
+
+    // 初期は操作系を無効（生成が終わるまで）
+    if (copyBtn) copyBtn.disabled = true;
+    if (saveTxtBtn) saveTxtBtn.disabled = true;
+    if (savePdfBtn) savePdfBtn.disabled = true;
 
     // token/session_id 必須（直アクセス対策）
     if (!token || !sessionId) {
@@ -340,10 +435,40 @@
     if (!opts.fromRetry && isDone(token)) {
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent =
-        "この端末では、すでに完全版の生成が完了しておるようじゃ。下の「もう一度生成する」で再生成もできるぞい。";
+        "この端末では、すでに完全版の生成が完了しておるようじゃ。下のボタンで保存もできるぞい。";
       const cnt = getRetryCount(token);
       retryHint.textContent = `途中で止まったら「もう一度生成する」を押すのじゃ。（最大2回／現在 ${cnt} 回）`;
       actionsEl.style.display = "flex";
+
+      // 既に本文が表示されている前提ではないので、保存ボタンは本文がある時だけ有効にする
+      const hasText = (outEl.textContent || "").trim().length > 0;
+      if (copyBtn) copyBtn.disabled = !hasText;
+      if (saveTxtBtn) saveTxtBtn.disabled = !hasText;
+      if (savePdfBtn) savePdfBtn.disabled = !hasText;
+
+      // ボタンイベント（再設定）
+      if (copyBtn) copyBtn.onclick = async () => {
+        try{
+          await copyToClipboard(outEl.textContent);
+          statusTextEl.textContent = "コピーしたぞ。メモでもLINEでも貼るがよい。";
+        }catch{
+          statusTextEl.textContent = "コピーに失敗したようじゃ…。もう一度試してくれ。";
+        }
+      };
+      if (saveTxtBtn) saveTxtBtn.onclick = () => {
+        const name = `koiguru_report_${todayStr()}_${shortToken(token)}.txt`;
+        downloadTextAsFile(name, outEl.textContent);
+        statusTextEl.textContent = "TXTで保存したぞ。";
+      };
+      if (savePdfBtn) savePdfBtn.onclick = () => {
+        if (!(outEl.textContent || "").trim()) {
+          statusTextEl.textContent = "まだ本文が無いようじゃ。まず生成を完了させてくれ。";
+          return;
+        }
+        statusTextEl.textContent = "PDFに保存する準備じゃ（印刷画面が開くぞい）。";
+        window.print();
+      };
+
       isRunning = false;
       return;
     }
@@ -407,13 +532,14 @@
     dotsEl.classList.remove("is-hidden");
 
     const summaryJson = loadSummary(token);
- if (!summaryJson) {
-  clearProgressTimers();
-  dotsEl.classList.add("is-hidden");
 
-  statusTextEl.textContent = "この端末にレポートの元データが見当たらん…。下の手順で復旧してくれ。";
+    if (!summaryJson) {
+      clearProgressTimers();
+      dotsEl.classList.add("is-hidden");
 
-  outEl.textContent =
+      statusTextEl.textContent = "この端末にレポートの元データが見当たらん…。下の手順で復旧してくれ。";
+
+      outEl.textContent =
 `【大事な話じゃ】
 この完全版は「決済した端末・同じブラウザ」に一時保存されている“お主との会話履歴”を使って生成する仕組みじゃ。
 いまは、その設計図がこのブラウザに見当たらん状態じゃな。
@@ -434,15 +560,18 @@ A）追加購入なしで復旧できる可能性が高い（まずこれをや�
 
 2) そのブラウザで、この「決済後のページ」を開き直す
    開き方の具体例：
-	1.	いちばん確実：このページのURLを、同じブラウザで貼り直して開く
-いま見えているURL（末尾に token と session_id が付いておるやつ）をコピーして、同じブラウザのアドレス欄に貼って開き直す。
-これができれば復旧の成功率が一番高い。
-	2.	URLが分からんとき：ブラウザの「履歴」から探して開く
-同じブラウザで履歴を開いて、「paid-success」または「完全版」で検索して、決済後に開いたページを選んで開く。
-（要は、さっき開けた“完了ページ”をもう一回開くだけじゃ）
-	3.	もし残っていれば：決済完了画面から“そのまま”戻ってくる
-決済が終わったあとにStripeが自動で戻したページ（この完了ページ）に、もう一度アクセスする。
-※「戻るボタン」で戻るより、「完了後に遷移したページ」をもう一回開くほうが確実じゃ。
+   1. いちばん確実：このページのURLを、同じブラウザで貼り直して開く
+      いま見えているURL（末尾に token と session_id が付いておるやつ）をコピーして、
+      同じブラウザのアドレス欄に貼って開き直す。これが成功率いちばん高い。
+
+   2. URLが分からんとき：ブラウザの「履歴」から探して開く
+      同じブラウザで履歴を開いて、「paid-success」または「完全版」で検索して、
+      決済後に開いたページを選んで開く。
+      （要は、さっき開けた“完了ページ”をもう一回開くだけじゃ）
+
+   3. もし残っていれば：決済完了画面から“そのまま”戻ってくる
+      決済が終わったあとにStripeが自動で戻したページ（この完了ページ）に、もう一度アクセスする。
+      ※「戻るボタン」で戻るより、「完了後に遷移したページ」をもう一回開くほうが確実じゃ。
 
    ※ ここで大事なのは「同じブラウザで開く」ことじゃ。
       Safari/Chrome切替、シークレットモード、端末切替はアウトになりやすい。
@@ -459,7 +588,6 @@ B）Aができない／設計図が消えている（最後の手段）
 ・ブラウザのデータ削除（履歴/キャッシュ削除）をした
 
 この場合、現状の仕組みだと“設計図を作り直す”必要がある。
-ただし――ここで「もう一回購入しろ」と突き放すのは仙人の流儀ではない。
 
 【二重課金を避けるコツじゃ】
 ・まずはStripeの決済完了メール（レシート）を確認するのじゃ（支払いの証拠になる）
@@ -470,16 +598,21 @@ B）Aができない／設計図が消えている（最後の手段）
 まずはAを、落ち着いて試すのじゃ。
 `;
 
-  actionsEl.style.display = "flex";
+      actionsEl.style.display = "flex";
 
-  // 「もう一度生成する」はこのケースでは意味が薄いので文言を変える（任意）
-  retryBtn.textContent = "このページを再読み込み";
-  retryBtn.onclick = () => location.reload();
+      // 「もう一度生成する」はこのケースでは意味が薄いので文言を変える
+      retryBtn.textContent = "このページを再読み込み";
+      retryBtn.disabled = false;
+      retryBtn.onclick = () => location.reload();
 
-  // チャット導線を強める（リンクは既にあるが、ここでも明示）
-  // 既存の「チャットへ戻る」リンクがあるので追加不要なら消してOK
-  return;
-}
+      // 保存/コピーは本文が無いので無効のまま
+      if (copyBtn) copyBtn.disabled = true;
+      if (saveTxtBtn) saveTxtBtn.disabled = true;
+      if (savePdfBtn) savePdfBtn.disabled = true;
+
+      isRunning = false;
+      return;
+    }
 
     try {
       const res = await fetch("/api/paid-report", {
@@ -509,8 +642,41 @@ B）Aができない／設計図が消えている（最後の手段）
 
       // ✅ 完了フラグ（リロードで再生成されない）
       setDone(token);
-      // 成功したらretry回数をリセット（任意：運用が楽）
+      // 成功したらretry回数をリセット（運用が楽）
       resetRetries(token);
+
+      // ✅ 成功時も actions を出す（保存導線）
+      actionsEl.style.display = "flex";
+
+      // ✅ 保存/コピーを有効化
+      if (copyBtn) copyBtn.disabled = false;
+      if (saveTxtBtn) saveTxtBtn.disabled = false;
+      if (savePdfBtn) savePdfBtn.disabled = false;
+
+      // ✅ ボタン実装
+      if (copyBtn) copyBtn.onclick = async () => {
+        try{
+          await copyToClipboard(outEl.textContent);
+          statusTextEl.textContent = "コピーしたぞ。メモでもLINEでも貼るがよい。";
+        }catch{
+          statusTextEl.textContent = "コピーに失敗したようじゃ…。もう一度試してくれ。";
+        }
+      };
+
+      if (saveTxtBtn) saveTxtBtn.onclick = () => {
+        const name = `koiguru_report_${todayStr()}_${shortToken(token)}.txt`;
+        downloadTextAsFile(name, outEl.textContent);
+        statusTextEl.textContent = "TXTで保存したぞ。";
+      };
+
+      if (savePdfBtn) savePdfBtn.onclick = () => {
+        if (!(outEl.textContent || "").trim()) {
+          statusTextEl.textContent = "まだ本文が無いようじゃ。まず生成を完了させてくれ。";
+          return;
+        }
+        statusTextEl.textContent = "PDFに保存する準備じゃ（印刷画面が開くぞい）。";
+        window.print();
+      };
 
     } catch (e) {
       clearProgressTimers();
@@ -544,6 +710,9 @@ B）Aができない／設計図が消えている（最後の手段）
       // 再実行（fromRetry扱いにする）
       await run({ fromRetry: true });
     };
+
+    // 保存/コピー（本文が出る前は無効、出たら有効化して上でonclick設定）
+    // ここでは何もしない
   }
 
   if (document.readyState === "loading") {
