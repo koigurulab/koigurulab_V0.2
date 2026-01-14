@@ -220,6 +220,7 @@
 <script>
 (function () {
   function safeJsonParse(raw) { try { return JSON.parse(raw); } catch { return null; } }
+
   // ===== 進捗コピーを段階的に切り替えるためのタイマー管理 =====
   let progressTimers = [];
 
@@ -229,47 +230,39 @@
   }
 
   function scheduleProgressCopies({ setStatus, setHero }){
-    // まず掃除（runの連打・retryで増殖するのを防ぐ）
     clearProgressTimers();
 
-    // 0秒：開始（すでに表示済みでも上書きしてOK）
     setStatus("完全版を生成しておる…（お主の「恋のクセ」と「次の一歩」をまとめ直しておるぞ）");
 
-    // 4秒：骨組み
     progressTimers.push(setTimeout(() => {
       setStatus("まずは全体の骨組みを組んでおる…（章立て・論点を整列中じゃ）");
       setHero("いま、仙人が「お主の恋のクセ」を抽出して、章立てに落としておる。読みやすさも整えるぞ。少々待っておれ。");
     }, 4000));
 
-    // 10秒：クセ・構図の深掘り
     progressTimers.push(setTimeout(() => {
       setStatus("お主の“揺れポイント”を言語化しておる…（ここがいちばん効く部分じゃ）");
       setHero("次に「お主の揺れのトリガー」と「相手との噛み合い」を整理しておる。モヤモヤの正体が言葉になるはずじゃ。");
     }, 10000));
 
-    // 18秒：具体化（文案/行動）
     progressTimers.push(setTimeout(() => {
       setStatus("最後に“使える形”へ整形しておる…（文案・まとめ・結びを仕上げ中じゃ）");
       setHero("仕上げに入ったぞ。読み終えた時に『何を大事にするか』が見えるよう、結論まで磨いておる。");
     }, 18000));
 
-    // 28秒：念押し（長引いたときの離脱防止）
     progressTimers.push(setTimeout(() => {
       setStatus("最終チェック中じゃ…（文章の流れ・重複・言い回しを整えておる）");
     }, 28000));
   }
+
   function loadSummary(token) {
     if (!token) return null;
 
-    // 新方式：まとめて保存
     const v1 = safeJsonParse(localStorage.getItem(`koi_session_${token}`));
     if (v1 && typeof v1 === "object") {
       if (v1.summaryJson && typeof v1.summaryJson === "object") return v1.summaryJson;
-      // summaryJson自体を保存しているケースにも対応
       if (v1.fortune_traits || v1.profile_snapshot || v1.title) return v1;
     }
 
-    // 旧方式：分割保存
     const v2 = safeJsonParse(localStorage.getItem(`koi_summaryJson_${token}`));
     if (v2 && typeof v2 === "object") return v2;
 
@@ -279,6 +272,7 @@
   async function run() {
     const qs = new URLSearchParams(location.search);
     const token = qs.get("token");
+    const sessionId = qs.get("session_id");
 
     const statusTextEl  = document.getElementById("statusText");
     const dotsEl        = document.getElementById("dots");
@@ -286,34 +280,78 @@
     const actionsEl     = document.getElementById("actions");
     const retryBtn      = document.getElementById("retry");
     const tokenHint     = document.getElementById("tokenHint");
+    const heroBoxEl     = document.getElementById("progress-copy");
 
-    tokenHint.textContent = "token: " + (token || "-");
-
-    // ★ログは token 取得後
-    console.log("token:", token);
-    if (token) {
-      console.log("koi_session:", localStorage.getItem(`koi_session_${token}`));
-      console.log("koi_summaryJson:", localStorage.getItem(`koi_summaryJson_${token}`));
-    }
+    tokenHint.textContent = "token: " + (token || "-") + " / session_id: " + (sessionId || "-");
 
     actionsEl.style.display = "none";
     dotsEl.classList.remove("is-hidden");
     outEl.textContent = "";
 
-    const summaryJson = loadSummary(token);
+    // token/session_id 必須（直アクセス対策）
+    if (!token || !sessionId) {
+      dotsEl.classList.add("is-hidden");
+      statusTextEl.textContent =
+        "決済情報が足りんようじゃ…。token と session_id が見当たらん。決済完了ページから開いておるか確認してくれ。";
+      actionsEl.style.display = "flex";
+      return;
+    }
 
+    // 先にサーバ側で Stripe 決済を検証
+    statusTextEl.textContent = "決済を確認しておる…（少々待つのじゃ）";
+    dotsEl.classList.remove("is-hidden");
+
+    try {
+      const vres = await fetch("/api/verify-paid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, token }),
+      });
+
+      const vdata = await vres.json().catch(() => null);
+
+      if (!vres.ok || !vdata || vdata.ok !== true) {
+        dotsEl.classList.add("is-hidden");
+        statusTextEl.textContent =
+          "まだ購入が確認できんかった…。決済が完了しておらんか、検証に失敗したようじゃ。";
+        outEl.textContent =
+          "\n\n---\n[verify-paid]\n" + JSON.stringify(vdata || { error: "verify failed" }, null, 2);
+        actionsEl.style.display = "flex";
+        return;
+      }
+    } catch (e) {
+      dotsEl.classList.add("is-hidden");
+      statusTextEl.textContent =
+        "決済検証に失敗したようじゃ。通信状況を確認して、もう一度試してくれ。";
+      outEl.textContent += "\n\n---\n[verify-paid error]\n" + String(e);
+      actionsEl.style.display = "flex";
+      return;
+    }
+
+    // ★ログは token 取得後
+    console.log("token:", token);
+    console.log("session_id:", sessionId);
+    if (token) {
+      console.log("koi_session:", localStorage.getItem(`koi_session_${token}`));
+      console.log("koi_summaryJson:", localStorage.getItem(`koi_summaryJson_${token}`));
+    }
+
+    // 離脱防止コピー（生成前に開始）
+    scheduleProgressCopies({
+      setStatus: (t) => { statusTextEl.textContent = t; },
+      setHero:   (t) => { if (heroBoxEl) heroBoxEl.innerHTML = String(t).replace(/\n/g, "<br>"); }
+    });
+    dotsEl.classList.remove("is-hidden");
+
+    const summaryJson = loadSummary(token);
     if (!summaryJson) {
+      clearProgressTimers();
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent =
         "このブラウザにデータが見当たらん…。決済前に使っていたのと同じ端末・同じブラウザで開いておるか確認してくれ。";
       actionsEl.style.display = "flex";
       return;
     }
-
-    // 離脱防止：期待感のある文言にする
-    statusTextEl.textContent =
-      "完全版を生成しておる…（お主の「恋のクセ」と「次の一歩」をまとめ直しておるぞ）";
-    dotsEl.classList.remove("is-hidden");
 
     try {
       const res = await fetch("/api/paid-report", {
@@ -336,19 +374,14 @@
         if (done) break;
         outEl.textContent += decoder.decode(value, { stream: true });
       }
- clearProgressTimers(); // ★追加：進捗タイマー停止
+
+      clearProgressTimers();
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
 
     } catch (e) {
+      clearProgressTimers();
       dotsEl.classList.add("is-hidden");
-          // ===== 段階的な進捗コピーを開始（fetch前）=====
-    const heroBoxEl = document.getElementById("progress-copy");
-
-    scheduleProgressCopies({
-      setStatus: (t) => { statusTextEl.textContent = t; },
-      setHero:   (t) => { if (heroBoxEl) heroBoxEl.innerHTML = String(t).replace(/\n/g, "<br>"); }
-    });
       statusTextEl.textContent = "生成に失敗したようじゃ。もう一度試してみよ。";
       outEl.textContent += "\n\n---\n[error]\n" + String(e);
       actionsEl.style.display = "flex";
