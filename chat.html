@@ -1007,10 +1007,8 @@ async function callOpenAI(messages){
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, stream: true }),
   });
-
-  const text = await res.text();
 
   // 429はリトライ対象
   if (res.status === 429) {
@@ -1018,14 +1016,30 @@ async function callOpenAI(messages){
   }
 
   if (!res.ok) {
+    const text = await res.text().catch(()=> "");
     console.log("=== /api/chat raw response ===");
     console.log("status:", res.status);
     console.log("body:", text);
     throw new Error("API_ERROR");
   }
 
-  const data = JSON.parse(text);
-  return data.content || "";
+  // text/plain streaming を最後まで読む
+  if (!res.body) {
+    const text = await res.text().catch(()=> "");
+    return text || "";
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let out = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    out += decoder.decode(value, { stream: true });
+  }
+
+  return out || "";
 }
 
 /* ===========================
@@ -1793,6 +1807,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
