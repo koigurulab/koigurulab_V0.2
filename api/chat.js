@@ -7,7 +7,6 @@ export default async function handler(req, res) {
 
     // ------------------------------------------------------------
     // 0) Super simple in-memory rate limit (per IP, per minute)
-    //    ※ サーバレスなので「完璧」ではないが、今はこれで十分効く
     // ------------------------------------------------------------
     const bucket = globalThis.__rl_bucket || (globalThis.__rl_bucket = new Map());
 
@@ -42,7 +41,7 @@ export default async function handler(req, res) {
     // 1) Input validation
     // ------------------------------------------------------------
     const len = Number(req.headers["content-length"] || "0");
-    const MAX_BYTES = 250_000; // 250KB
+    const MAX_BYTES = 250_000;
     if (len && len > MAX_BYTES) {
       return res.status(413).json({ error: "Payload too large" });
     }
@@ -51,16 +50,13 @@ export default async function handler(req, res) {
     if (!rawKey) return res.status(500).json({ error: "Missing OPENAI_API_KEY" });
     const apiKey = rawKey.trim();
 
-    const { messages } = req.body || {};
+    const { messages, stream } = req.body || {};
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "messages is required" });
     }
 
     // ------------------------------------------------------------
     // 2) Guard messages
-    //    - systemはクライアントから受け取らない（捨てる）
-    //    - user/assistant だけ残す
-    //    - 長さ上限をかける
     // ------------------------------------------------------------
     const MAX_MSGS = 24;
     const MAX_CHARS_TOTAL = 30_000;
@@ -80,7 +76,6 @@ export default async function handler(req, res) {
 
     // ------------------------------------------------------------
     // 3) Server-fixed system (prepend & override)
-    //    ※ クライアント側のsystemは捨てる（脱獄防止）
     // ------------------------------------------------------------
     const SYSTEM = `
 あなたは「恋脳レポート」の恋愛仙人じゃ。
@@ -91,57 +86,48 @@ export default async function handler(req, res) {
 
     const guardedMessages = [
       { role: "system", content: SYSTEM },
-      ...trimmed, // trimmedは system を含まない想定（roleをuser/assistantに丸めているため）
+      ...trimmed, // client systemはそもそも落としてるのでこれでOK
     ];
 
     // ------------------------------------------------------------
-    // 4) OpenAI call
+    // 4) OpenAI call (stream-ready + repetition control)
     // ------------------------------------------------------------
-    // ■モデル
-    // miniを外したいなら gpt-4.1 に変更（コストは上がる）
-    const MODEL = "gpt-4.1"; // 例: "gpt-4.1"
+    // モデルは env で切替できるようにする（まずは mini 推奨）
+    const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
-    // ■生成パラメータ
-    const MAX_TOKENS = 900;
-    const TEMPERATURE = 1.0;          // 0.7→1.0（揺れを少し増やす）
-    const PRESENCE_PENALTY = 0.6;     // 0.3〜0.8 推奨
-    const FREQUENCY_PENALTY = 0.3;    // 0.2〜0.6 推奨
+    // 品質/反復/コストのバランス（まずはこの値から）
+    const MAX_TOKENS = 650;
+    const TEMPERATURE = 0.9;
+    const PRESENCE_PENALTY = 0.6;   // 話題の繰り返し抑制
+    const FREQUENCY_PENALTY = 0.3;  // 同一表現の繰り返し抑制
 
-    // ■タイムアウト
-    const TIMEOUT_MS = 20_000;
+    // 504対策：クライアント/上流に「何か返している状態」を作るのが重要
+    const TIMEOUT_MS = 55_000;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    let openaiRes;
-    try {
-      openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: guardedMessages,
-          max_tokens: MAX_TOKENS,
-          temperature: TEMPERATURE,
-          presence_penalty: PRESENCE_PENALTY,
-          frequency_penalty: FREQUENCY_PENALTY,
-        }),
-        signal: controller.signal,
-      });
-    } catch (e) {
-      // AbortController など fetch 自体が落ちたケース
-      const msg = String(e?.name || e?.message || e);
-      const isAbort = msg.includes("Abort") || msg.includes("aborted");
-      return res.status(isAbort ? 504 : 500).json({
-        error: isAbort ? "Upstream timeout" : "Upstream fetch error",
-        detail: msg,
-      });
-    } finally {
-      clearTimeout(timer);
-    }
+    const wantStream = stream === true; // chat.html側から true を送る
+
+    const body = {
+      model: MODEL,
+      messages: guardedMessages,
+      max_tokens: MAX_TOKENS,
+      temperature: TEMPERATURE,
+      presence_penalty: PRESENCE_PENALTY,
+      frequency_penalty: FREQUENCY_PENALTY,
+      stream: wantStream,
+    };
+
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timer));
 
     if (!openaiRes.ok) {
       const t = await openaiRes.text().catch(() => "");
@@ -152,13 +138,70 @@ export default async function handler(req, res) {
       });
     }
 
-    const data = await openaiRes.json();
-    const content =
-      data.choices?.[0]?.message?.content ??
-      "すまぬ、仙人の声がうまく届かなかったようじゃ。";
+    // -------------------------
+    // 非ストリーム（互換用）
+    // -------------------------
+    if (!wantStream) {
+      const data = await openaiRes.json();
+      const content =
+        data.choices?.[0]?.message?.content ??
+        "すまぬ、仙人の声がうまく届かなかったようじゃ。";
+      return res.status(200).json({ content });
+    }
 
-    return res.status(200).json({ content });
+    // -------------------------
+    // ストリーム（本命）
+    // -------------------------
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders?.();
+
+    const decoder = new TextDecoder("utf-8");
+    const reader = openaiRes.body?.getReader();
+
+    if (!reader) {
+      res.end("すまぬ、仙人の声がうまく届かなかったようじゃ。");
+      return;
+    }
+
+    let buffer = "";
+
+    // OpenAIのstream(SSE)を解釈して、delta.contentだけをクライアントへ流す
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSEは \n\n 区切り
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith("data:")) continue;
+
+        const dataStr = line.slice(5).trim();
+        if (dataStr === "[DONE]") {
+          res.end();
+          return;
+        }
+
+        try {
+          const json = JSON.parse(dataStr);
+          const delta = json?.choices?.[0]?.delta?.content;
+          if (delta) res.write(delta);
+        } catch {
+          // JSONパース失敗は握りつぶし（上流の断片など）
+        }
+      }
+    }
+
+    res.end();
   } catch (err) {
+    // Abort/Timeoutもここに来る
     return res.status(500).json({ error: "Unexpected server error", detail: String(err) });
   }
 }
