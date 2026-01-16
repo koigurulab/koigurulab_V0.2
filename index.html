@@ -478,6 +478,17 @@
     }
     .about-card-list li { margin-bottom: 4px; }
   </style>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-XXXXXXXXXX', {
+    send_page_view: true
+  });
+</script>
 </head>
 <body>
 
@@ -490,7 +501,10 @@
       </div>
     </div>
 
-    <a href="chat.html" class="header-cta">無料で相談してみる</a>
+    <a href="chat.html" class="header-cta"
+   onclick="gtag('event','click_start_free',{location:'header'})">
+  無料で相談してみる
+</a>
   </div>
 </header>
 
@@ -523,9 +537,13 @@ MBTI×恋愛16タイプにもとづいて、
     <!-- ★削除：匿名・無料などのバッジ群（スペース確保） -->
 
     <div class="hero-cta-row" id="start-chat">
-      <button class="hero-cta-main" onclick="window.location.href='chat.html'">
-        無料で恋愛仙人に相談してみる
-      </button>
+     <button class="hero-cta-main"
+  onclick="
+    gtag('event','click_start_free',{location:'hero'});
+    window.location.href='chat.html';
+  ">
+  無料で恋愛仙人に相談してみる
+</button>
       <span class="hero-cta-sub">
         まずは
         <span class="hero-cta-link" onclick="document.getElementById('about')?.scrollIntoView({behavior:'smooth'})">
@@ -683,6 +701,7 @@ MBTI×恋愛16タイプにもとづいて、
 
 </body>
 </html>
+
 
 
 
