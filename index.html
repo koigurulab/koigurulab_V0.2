@@ -52,7 +52,7 @@
       padding: 12px 16px;
       display: flex;
       align-items: center;
-      justify-content: flex-start; /* ← space-between をやめてボタンをロゴ寄せ */
+      justify-content: space-between;
       gap: 12px;
     }
     .logo {
@@ -98,14 +98,6 @@
       .logo-text-sub { display: none; } /* スマホで詰まるので非表示 */
     }
 
-    .header-actions{
-      margin-left: auto;          /* ボタン群は右寄せ */
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex: 0 0 auto;
-    }
-
     .header-cta {
       padding: 10px 14px;
       border-radius: 999px;
@@ -125,17 +117,6 @@
       line-height: 1;
     }
     .header-cta:hover { background: var(--accent-dark); }
-
-    /* お問い合わせボタン（サブ） */
-    .header-cta.secondary{
-      background: #ffffff;
-      color: var(--accent-dark);
-      border: 1px solid #fecaca;
-      box-shadow: none;
-    }
-    .header-cta.secondary:hover{
-      background: #fff1f2;
-    }
 
     /* ヒーロー */
     .hero {
@@ -234,7 +215,7 @@
       flex-wrap: wrap;
       gap: 10px;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .hero-cta-main {
       padding: 12px 22px;
@@ -259,6 +240,21 @@
       text-underline-offset: 3px;
       cursor: pointer;
     }
+
+    /* お問い合わせリンク（「まずは…」の下に置く用） */
+    .hero-contact {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 2px 0 10px;
+    }
+    .hero-contact a{
+      color: #f97373;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
     .hero-note {
       font-size: 11px;
       color: var(--muted);
@@ -527,7 +523,6 @@
         if (typeof el.scrollIntoView === 'function') {
           el.scrollIntoView({behavior:'smooth'});
         } else {
-          // 古い環境用フォールバック
           window.location.hash = '#' + id;
         }
       } catch(e) {}
@@ -554,18 +549,10 @@
       </div>
     </div>
 
-    <div class="header-actions">
-      <a href="chat.html" class="header-cta"
-         onclick="track('click_start_free',{location:'header'});">
-        無料で相談してみる
-      </a>
-
-      <a href="https://x.com/koigurulab?s=21" target="_blank" rel="noopener noreferrer"
-         class="header-cta secondary"
-         onclick="track('click_contact',{location:'header'});">
-        お問い合わせ
-      </a>
-    </div>
+    <a href="chat.html" class="header-cta"
+       onclick="track('click_start_free',{location:'header'});">
+      無料で相談してみる
+    </a>
   </div>
 </header>
 
@@ -612,6 +599,14 @@
       </span>
     </div>
 
+    <!-- ★追加：お問い合わせはこちら（Twitter/Xへ） -->
+    <div class="hero-contact">
+      <a href="https://x.com/koigurulab?s=21" target="_blank" rel="noopener noreferrer"
+         onclick="track('click_contact',{location:'hero'});">
+        お問い合わせはこちら
+      </a>
+    </div>
+
     <p class="hero-note">
       ※ 実在の人物とは一切関係ありません。／診断結果はあくまで恋愛の整理用コンテンツです。
     </p>
@@ -623,7 +618,7 @@
       <div class="hero-chat-header">
         <div class="hero-chat-identity">
           <div class="hero-chat-avatar">
-            <img src="./assets/senin_320.webp" alt="恋愛仙人" />
+            <img src="./assets/senin_320.webp"  alt="恋愛仙人" />
           </div>
           <div>
             <div class="hero-chat-name">恋愛仙人</div>
