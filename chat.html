@@ -653,7 +653,7 @@ function getAssistantTurn() {
 }
 function getPhaseFromTurn(turn) {
   if (turn <= 3) return "F";
-  if (turn <= 5) return "P";
+  if (turn <= 4) return "P";
   return "D";
 }
 function getQuestionTheme(phase) {
@@ -664,9 +664,9 @@ function getQuestionTheme(phase) {
 
 let isBusy = false;
 
-// ※ 元コードに合わせて 8 ターンで「有料導線へ」
+// ※ 元コードに合わせて 6ターンで「有料導線へ」
 // （ここでは“自動で有料レポート生成”はせず、Stripeに繋ぐ）
-const MAX_TURNS = 8;
+const MAX_TURNS = 6;
 let paywallPrepared = false; // 有料導線を一度だけ出す
 let isFinished = false;
 
@@ -1836,6 +1836,7 @@ freeInput.addEventListener("keydown", (e) => {
 </script>
 </body>
 </html>
+
 
 
 
