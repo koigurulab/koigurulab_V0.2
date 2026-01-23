@@ -342,6 +342,23 @@
     .chat-send-btn:hover { background: var(--accent-dark); }
     .chat-send-btn[disabled] { opacity: 0.6; cursor: default; }
   </style>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PMRW6LK7YG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function(){ window.dataLayer.push(arguments); };
+  gtag('js', new Date());
+  gtag('config', 'G-PMRW6LK7YG', { send_page_view: true });
+
+  // イベント送信用の薄いラッパー
+  function track(eventName, params){
+    try{
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', eventName, params || {});
+      }
+    }catch(e){}
+  }
+</script>
 </head>
 
 <body>
@@ -484,62 +501,6 @@ function scheduleTypingBubble(delayMs = 2000){
   typingTimer = setTimeout(showTypingBubble, delayMs);
 }
 
-/* ===========================
-   1.5) Token（Stripe紐づけ）: 追加
-   =========================== */
-function makeToken(){
-  if (window.crypto?.randomUUID) return crypto.randomUUID();
-  return "tok_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-function saveSessionByToken(token, payload){
-  // payload: { summaryJson, profile, history }
-  try {
-    localStorage.setItem("koi_token", token);
-    localStorage.setItem(`koi_summaryJson_${token}`, JSON.stringify(payload.summaryJson ?? null));
-    localStorage.setItem(`koi_profile_${token}`, JSON.stringify(payload.profile ?? null));
-    localStorage.setItem(`koi_history_${token}`, JSON.stringify(payload.history ?? null));
-    localStorage.setItem(`koi_createdAt_${token}`, String(Date.now()));
-  } catch (e) {
-    console.warn("localStorage save failed:", e);
-  }
-}
-
-async function startCheckout(token){
-  // サーバ側で /api/create-checkout-session を実装している想定
-  // { token } を受けて Stripe の Checkout URL を返す
-  const res = await fetch("/api/create-checkout-session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token })
-  });
-
-  const text = await res.text();
-  if (!res.ok) {
-    console.log("create-checkout-session error:", res.status, text);
-    throw new Error("CHECKOUT_ERROR");
-  }
-
-  const data = JSON.parse(text);
-  if (!data?.url) throw new Error("CHECKOUT_URL_MISSING");
-  window.location.href = data.url;
-}
-  // --- textarea auto-grow + Enter送信（Shift+Enterで改行） ---
-(() => {
-  const ta = document.getElementById("free-input");
-  const sendBtn = document.getElementById("send");
-  if (!ta) return;
-
-  const resize = () => {
-    ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, 160) + "px";
-  };
-
-  ta.addEventListener("input", resize);
-  window.addEventListener("load", resize);
-
-
-})();
 
 
 /* ===========================
@@ -720,6 +681,7 @@ if (idx < steps.length) {
   showAsk();
 } else {
   statusEl.textContent = "仙人が考え中じゃ…";
+  track('intake_complete', { step_count: steps.length });
   await startFirstTurn();
   statusEl.textContent = "";
   setBusy(false);
@@ -1655,11 +1617,12 @@ async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
 }
 
 /* ===========================
-   14) 8回目終了後：無料レポ → 購入ボタン表示 → 入力ロック
+   14) 6回目終了後：無料レポ → 購入ボタン表示 → 入力ロック
    =========================== */
 async function endFreeChatAndShowPaywall() {
   if (paywallShown) return;
   paywallShown = true;
+  track('free_report_begin', { turn: MAX_TURNS });
 
   // この時点でチャット入力は終了（ただし購入ボタンは押せる）
   lockChatInput("無料レポートは完了じゃ。購入ボタンから進めてくれ。");
@@ -1681,6 +1644,7 @@ async function endFreeChatAndShowPaywall() {
       summaryJson,
       "── ここからは『無料レポート（切り取り）』じゃ。\n\n"
     );
+    track('free_report_shown', { turn: MAX_TURNS });
 
     // 3) token発行 → 保存（決済後に有料生成に使う）
     const token = makeToken();
@@ -1704,7 +1668,7 @@ choicesWrap.innerHTML = "";
 
 function showPaywallButtons(token) {
   choicesWrap.innerHTML = "";
-
+track('paywall_shown', { token_present: !!token });
    // ★注意1行（最重要：別端末/別ブラウザ事故を防ぐ）
   const warn = document.createElement("div");
   warn.style.margin = "10px 0";
@@ -1724,9 +1688,11 @@ function showPaywallButtons(token) {
   buyBtn.className = "choice";
   buyBtn.textContent = "購入して有料レポートを作る（Stripe）";
   buyBtn.addEventListener("click", async () => {
+    track('click_buy', { location: 'paywall', token_present: !!token });
     try {
       setBusy(true);
       statusEl.textContent = "決済画面へ移動中じゃ…";
+      track('begin_checkout', { location: 'paywall' });
       await startCheckout(token);
     } catch (err) {
       console.error(err);
@@ -1829,13 +1795,14 @@ freeInput.addEventListener("keydown", (e) => {
   if (e.isComposing) return;  // 変換確定中は許可
   e.preventDefault();         // 変換中でないEnterは無効化（送信もしない）
 });
-
+track('chat_view', { page: 'chat.html' });
 (function boot(){
   showAsk();
 })();
 </script>
 </body>
 </html>
+
 
 
 
