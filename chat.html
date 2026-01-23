@@ -298,7 +298,40 @@
   box-shadow: 0 14px 30px rgba(248, 113, 113, 0.30);
 }
 .choice.is-selected:hover { filter: brightness(0.98); }
-    
+    .progress-wrap{
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.progress-pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 18px rgba(248, 113, 113, 0.14);
+  color: #7a2f3b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.progress-pill .badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f97373, #fb7185);
+  color:#fff;
+  font-size: 12px;
+  font-weight: 900;
+}
   .composer {
   display: flex;
   gap: 8px;
@@ -403,7 +436,10 @@
     <div id="chat" class="chat-box"></div>
     <div id="step-hint" class="small step-hint"></div>
     <div id="choices" class="choices"></div>
-
+<!-- 進捗表示（インテーク後に表示） -->
+<div id="progressWrap" class="progress-wrap is-hidden">
+  <div id="progressPill" class="progress-pill" aria-live="polite"></div>
+</div>
    <div class="composer">
   <textarea
     id="free-input"
@@ -624,7 +660,32 @@ function getQuestionTheme(phase) {
 }
 
 let isBusy = false;
+let freeTurnsDone = 0; // インテーク後の「仙人返信」回数だけ数える（1〜MAX_TURNS）
 
+const progressWrap = document.getElementById("progressWrap");
+const progressPill = document.getElementById("progressPill");
+
+function showProgress() {
+  progressWrap?.classList.remove("is-hidden");
+}
+
+function hideProgress() {
+  progressWrap?.classList.add("is-hidden");
+}
+
+function updateProgress() {
+  if (!progressPill) return;
+
+  const remaining = Math.max(0, MAX_TURNS - freeTurnsDone);
+
+  if (remaining > 0) {
+    progressPill.innerHTML =
+      `<span class="badge">${remaining}</span>` +
+      `あと<span style="font-weight:900;">${remaining}</span>回で、無料レポにまとめるぞい`;
+  } else {
+    progressPill.textContent = "無料レポートをまとめておるぞい…";
+  }
+}
 // ※ 元コードに合わせて 6ターンで「有料導線へ」
 // （ここでは“自動で有料レポート生成”はせず、Stripeに繋ぐ）
 const MAX_TURNS = 6;
@@ -680,6 +741,11 @@ if (idx < steps.length) {
   setBusy(false);
   showAsk();
 } else {
+  // ★インテークが終わったら進捗を表示開始（インテークはカウントしない）
+  showProgress();
+  freeTurnsDone = 0;
+  updateProgress();
+
   statusEl.textContent = "仙人が考え中じゃ…";
   track('intake_complete', { step_count: steps.length });
   await startFirstTurn();
@@ -1470,6 +1536,9 @@ async function startFirstTurn(){
     const reply = await withRetry(()=>callOpenAI(msgs));
     hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
     addAssistant(reply);
+    // ★この時点で「無料相談 1回消化」
+freeTurnsDone += 1;
+updateProgress();
     history.push({role:"user",content:msgs[2].content});
     history.push({role:"assistant",content:reply});
   }catch(e){
@@ -1622,6 +1691,9 @@ async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
 async function endFreeChatAndShowPaywall() {
   if (paywallShown) return;
   paywallShown = true;
+ // ★無料レポに入るので進捗表示は終了
+hideProgress();
+
   track('free_report_begin', { turn: MAX_TURNS });
 
   // この時点でチャット入力は終了（ただし購入ボタンは押せる）
@@ -1759,6 +1831,9 @@ async function sendFree(){
     const reply = await withRetry(()=>callOpenAI(msgs));
     hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
     addAssistant(reply);
+    // ★この時点で「無料相談 1回消化」
+freeTurnsDone += 1;
+updateProgress();
 
     history.push({role:"user",content:msgs[msgs.length-1].content});
     history.push({role:"assistant",content:reply});
@@ -1802,6 +1877,7 @@ track('chat_view', { page: 'chat.html' });
 </script>
 </body>
 </html>
+
 
 
 
