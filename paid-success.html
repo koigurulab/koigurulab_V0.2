@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <!-- GA4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXXXX', {
+    send_page_view: true
+  });
+</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>完全版レポート生成</title>
@@ -515,6 +525,7 @@
       isRunning = false;
       return;
     }
+    
 
     // ★ログは token 取得後
     console.log("token:", token);
@@ -597,6 +608,7 @@ B）Aができない／設計図が消えている（最後の手段）
 このページを開いたブラウザに、チャットのデータ（設計図）が残っておれば、追加購入なしで生成できる。
 まずはAを、落ち着いて試すのじゃ。
 `;
+      
 
       actionsEl.style.display = "flex";
 
@@ -613,6 +625,28 @@ B）Aができない／設計図が消えている（最後の手段）
       isRunning = false;
       return;
     }
+    // ===== GA4 purchase（売上計上）=====
+// sessionId を transaction_id にする（重複防止の軸になる）
+const gaPurchaseKey = "ga_purchase_sent_" + sessionId;
+
+if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
+  const price = 480; // 金額が固定ならこれでOK。可変なら vdata から金額を返して使うのが理想
+
+  gtag('event', 'purchase', {
+    transaction_id: sessionId,
+    affiliation: 'koigurulab',
+    value: price,
+    currency: 'JPY',
+    items: [{
+      item_id: 'koinou_report_full',
+      item_name: '恋脳レポート 完全版',
+      price: price,
+      quantity: 1
+    }]
+  });
+
+  localStorage.setItem(gaPurchaseKey, "1");
+}
 
     try {
       const res = await fetch("/api/paid-report", {
