@@ -206,10 +206,146 @@
       pre{ font-size: 14px; }
     }
 
+    /* ===== 付録セクション ===== */
+    .appendix{
+      display: none;
+      margin-top: 16px;
+    }
+    .appendix.is-visible{ display: block; }
+    .appendix-section{
+      background: #fff;
+      border: 1px solid #ffe4e6;
+      border-radius: 16px;
+      padding: 16px 14px;
+      margin-bottom: 12px;
+    }
+    .appendix-section-title{
+      font-size: 16px;
+      font-weight: 800;
+      margin: 0 0 10px;
+      color: var(--accent-dark);
+    }
+    .line-card{
+      background: #fff7f8;
+      border: 1px solid #ffe4e6;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .line-card-label{
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-dark);
+      margin-bottom: 4px;
+    }
+    .line-card-msg{
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.6;
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid #ffe4e6;
+      margin: 6px 0;
+    }
+    .line-card-meta{
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .ng-list{
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .ng-list li{
+      padding: 6px 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .ng-list li:last-child{ border-bottom: none; }
+    .ng-list li::before{
+      content: "\274C ";
+      color: var(--accent);
+    }
+    .go-stop-grid{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .go-col, .stop-col{
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .go-col{ background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .stop-col{ background: #fef2f2; border: 1px solid #fecaca; }
+    .go-col-title, .stop-col-title{
+      font-size: 13px;
+      font-weight: 800;
+      margin: 0 0 6px;
+    }
+    .go-col-title{ color: #16a34a; }
+    .stop-col-title{ color: #dc2626; }
+    .go-col li, .stop-col li{
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 2px 0;
+    }
+    .go-col ul, .stop-col ul{
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .branch-block{
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .branch-block-title{
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--ink);
+      margin: 0 0 6px;
+    }
+    .week-table{
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+    .week-table th{
+      background: #fff3f3;
+      font-weight: 700;
+      padding: 8px 6px;
+      text-align: left;
+      border-bottom: 2px solid #fecaca;
+    }
+    .week-table td{
+      padding: 8px 6px;
+      border-bottom: 1px solid #f3f4f6;
+      line-height: 1.5;
+      vertical-align: top;
+    }
+    .week-table tr:last-child td{ border-bottom: none; }
+    .appendix-text-block{
+      font-size: 14px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    @media (max-width: 520px){
+      .go-stop-grid{ grid-template-columns: 1fr; }
+      .week-table{ font-size: 12px; }
+    }
+
     /* ===== PDF保存（印刷）用：余計なUIを消す ===== */
     @media print{
       body{ background:#fff !important; }
-      .subnote, .hero, #status, #actions, .metaRow { display:none !important; }
+      .subnote, .hero, #status, #actions, .metaRow, .appendix-section-title { display:none !important; }
+      .appendix-section{ border:none !important; padding:0 !important; }
       .card{
         border: none !important;
         box-shadow: none !important;
@@ -252,6 +388,8 @@
       </div>
 
       <pre id="out"></pre>
+
+      <div id="appendix" class="appendix"></div>
 
       <div class="actions" id="actions">
         <button class="btn" id="retry">もう一度生成する</button>
@@ -395,6 +533,129 @@
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
+  // ===== 付録レンダリング =====
+  function renderAppendix(tools, tier) {
+    const el = document.getElementById("appendix");
+    if (!el || !tools) return;
+    let html = "";
+
+    // LINEテンプレート
+    if (tools.line_templates && tools.line_templates.length) {
+      html += '<div class="appendix-section">';
+      html += '<div class="appendix-section-title">\uD83D\uDCF1 LINEテンプレート</div>';
+      tools.line_templates.forEach((t, i) => {
+        html += '<div class="line-card">';
+        html += '<div class="line-card-label">\uD83D\uDCAC ' + escHtml(t.situation) + '</div>';
+        html += '<div class="line-card-msg">' + escHtml(t.message) + '</div>';
+        html += '<div class="line-card-meta">\u23F0 ' + escHtml(t.timing) + '<br>\u26A0\uFE0F ' + escHtml(t.avoid) + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    // NGチェックリスト
+    if (tools.ng_checklist && tools.ng_checklist.length) {
+      html += '<div class="appendix-section">';
+      html += '<div class="appendix-section-title">\uD83D\uDEAB NG行動チェックリスト</div>';
+      html += '<ul class="ng-list">';
+      tools.ng_checklist.forEach(item => {
+        html += '<li>' + escHtml(item) + '</li>';
+      });
+      html += '</ul></div>';
+    }
+
+    // タイミングガイド
+    if (tools.timing_guide) {
+      html += '<div class="appendix-section">';
+      html += '<div class="appendix-section-title">\u23F0 連絡タイミングガイド</div>';
+      html += '<div class="appendix-text-block">' + escHtml(tools.timing_guide) + '</div>';
+      html += '</div>';
+    }
+
+    // 今週のアクション
+    if (tools.next_action) {
+      html += '<div class="appendix-section">';
+      html += '<div class="appendix-section-title">\uD83C\uDFAF 今週やること</div>';
+      html += '<div class="appendix-text-block">' + escHtml(tools.next_action) + '</div>';
+      html += '</div>';
+    }
+
+    // ¥1,980専用セクション
+    if (tier === "1980") {
+      // 脈あり/撤退判定表
+      if (tools.pursuit_judgment) {
+        html += '<div class="appendix-section">';
+        html += '<div class="appendix-section-title">\uD83D\uDD0D 脈あり / 撤退 判定表</div>';
+        html += '<div class="go-stop-grid">';
+        html += '<div class="go-col"><div class="go-col-title">\u2705 脈ありサイン</div><ul>';
+        (tools.pursuit_judgment.go_signals || []).forEach(s => {
+          html += '<li>' + escHtml(s) + '</li>';
+        });
+        html += '</ul></div>';
+        html += '<div class="stop-col"><div class="stop-col-title">\uD83D\uDED1 撤退サイン</div><ul>';
+        (tools.pursuit_judgment.stop_signals || []).forEach(s => {
+          html += '<li>' + escHtml(s) + '</li>';
+        });
+        html += '</ul></div></div></div>';
+      }
+
+      // 分岐シナリオ
+      if (tools.branch_scenario) {
+        html += '<div class="appendix-section">';
+        html += '<div class="appendix-section-title">\uD83D\uDD00 返信が来た/来ない 分岐シナリオ</div>';
+        if (tools.branch_scenario.if_reply && tools.branch_scenario.if_reply.length) {
+          html += '<div class="branch-block"><div class="branch-block-title">\u2709\uFE0F 返信が来た場合</div>';
+          tools.branch_scenario.if_reply.forEach(r => {
+            html += '<div style="margin-bottom:6px;font-size:14px;line-height:1.6;">';
+            html += '<strong>' + escHtml(r.signal) + '</strong><br>';
+            html += '\u2192 ' + escHtml(r.next_action);
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+        if (tools.branch_scenario.if_no_reply) {
+          const nr = tools.branch_scenario.if_no_reply;
+          html += '<div class="branch-block"><div class="branch-block-title">\uD83D\uDE36 返信が来ない場合</div>';
+          html += '<div style="font-size:14px;line-height:1.7;">';
+          html += '\u23F3 待つ期間: ' + escHtml(nr.wait_days) + '<br>';
+          html += '\uD83D\uDCAC 次のメッセージ: ' + escHtml(nr.next_message) + '<br>';
+          html += '\uD83D\uDEA9 撤退の目安: ' + escHtml(nr.retreat_sign);
+          html += '</div></div>';
+        }
+        html += '</div>';
+      }
+
+      // 7日間プラン
+      if (tools.week_plan && tools.week_plan.length) {
+        html += '<div class="appendix-section">';
+        html += '<div class="appendix-section-title">\uD83D\uDCC5 7日間アクションプラン</div>';
+        html += '<table class="week-table"><thead><tr>';
+        html += '<th>Day</th><th>やること</th><th>やらないこと</th><th>チェック</th>';
+        html += '</tr></thead><tbody>';
+        tools.week_plan.forEach(d => {
+          html += '<tr>';
+          html += '<td style="font-weight:700;white-space:nowrap;">' + escHtml(d.day) + '</td>';
+          html += '<td>' + escHtml(d.action) + '</td>';
+          html += '<td>' + escHtml(d.avoid) + '</td>';
+          html += '<td>' + escHtml(d.checkpoint) + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+    }
+
+    if (html) {
+      el.innerHTML = html;
+      el.classList.add("is-visible");
+    }
+  }
+
+  function escHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = String(str || "");
+    return d.innerHTML;
+  }
+
   async function run(opts = { fromRetry: false }) {
     // 同時実行ガード（ダブルクリック/二重イベント等）
     if (isRunning) return;
@@ -403,6 +664,7 @@
     const qs = new URLSearchParams(location.search);
     const token = qs.get("token");
     const sessionId = qs.get("session_id");
+    const tier = qs.get("tier") || "480";
 
     const statusTextEl  = document.getElementById("statusText");
     const dotsEl        = document.getElementById("dots");
@@ -628,7 +890,9 @@ B）Aができない／設計図が消えている（最後の手段）
 const gaPurchaseKey = "ga_purchase_sent_" + sessionId;
 
 if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
-  const price = 480; // 金額が固定ならこれでOK。可変なら vdata から金額を返して使うのが理想
+  const tierPriceMap = { "480": 480, "980": 980, "1980": 1980 };
+  const tierNameMap = { "480": "診断レポート", "980": "攻略レポート", "1980": "個別戦略書" };
+  const price = tierPriceMap[tier] || 480;
 
   gtag('event', 'purchase', {
     transaction_id: sessionId,
@@ -636,8 +900,8 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
     value: price,
     currency: 'JPY',
     items: [{
-      item_id: 'koinou_report_full',
-      item_name: '恋脳レポート 完全版',
+      item_id: 'koiguru_report_' + tier,
+      item_name: tierNameMap[tier] || '恋脳レポート',
       price: price,
       quantity: 1
     }]
@@ -650,7 +914,7 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
       const res = await fetch("/api/paid-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(summaryJson),
+        body: JSON.stringify({ summaryJson, tier }),
       });
 
       if (!res.ok) {
@@ -669,6 +933,25 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
       }
 
       clearProgressTimers();
+
+      // ===== 付録ツール生成（tier 980/1980のみ）=====
+      if (tier === "980" || tier === "1980") {
+        statusTextEl.textContent = "付録ツールを生成しておる…（もう少しじゃ）";
+        try {
+          const toolsRes = await fetch("/api/paid-tools", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ summaryJson, tier }),
+          });
+          if (toolsRes.ok) {
+            const toolsData = await toolsRes.json();
+            renderAppendix(toolsData, tier);
+          }
+        } catch (e) {
+          console.warn("paid-tools error (non-fatal):", e);
+        }
+      }
+
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
 
@@ -686,9 +969,18 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
       if (savePdfBtn) savePdfBtn.disabled = false;
 
       // ✅ ボタン実装
+      function getFullText() {
+        let text = outEl.textContent || "";
+        const appendixEl = document.getElementById("appendix");
+        if (appendixEl && appendixEl.classList.contains("is-visible")) {
+          text += "\n\n" + (appendixEl.innerText || "");
+        }
+        return text;
+      }
+
       if (copyBtn) copyBtn.onclick = async () => {
         try{
-          await copyToClipboard(outEl.textContent);
+          await copyToClipboard(getFullText());
           statusTextEl.textContent = "コピーしたぞ。メモでもLINEでも貼るがよい。";
         }catch{
           statusTextEl.textContent = "コピーに失敗したようじゃ…。もう一度試してくれ。";
@@ -697,7 +989,7 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
 
       if (saveTxtBtn) saveTxtBtn.onclick = () => {
         const name = `koiguru_report_${todayStr()}_${shortToken(token)}.txt`;
-        downloadTextAsFile(name, outEl.textContent);
+        downloadTextAsFile(name, getFullText());
         statusTextEl.textContent = "TXTで保存したぞ。";
       };
 
