@@ -404,7 +404,7 @@ IAP:            expo-in-app-purchases
 ## 12. 注意事項・既知の問題
 
 1. **sennin-icon.png が 1.3MB**: アプリ用に圧縮が必要
-2. **chat.html に関数の重複定義**: `buildCommonSystem`, `buildPhaseSystem`, `buildSelfSummary`, `buildPartnerSummary`, `updateDialogSummary`, `buildUserMeta` が 2 回定義されている（後者で上書き）
-3. **paid-success.html の GA4 ID がマスク済み**: `G-XXXXXXXXXX` になっている（本番では `G-PMRW6LK7YG` に要置換）
+2. **chat.html の関数重複定義**: 修正済み。`buildCommonSystem` 等6関数の重複を解消。`initDialogSummary` が `selfSummary`/`partnerSummary` を正しく設定するバージョンを残した
+3. **paid-success.html の GA4 ID**: 修正済み（`G-PMRW6LK7YG` に置換完了）
 4. **Stripe SDK 不使用**: REST API 直接呼び出し。SDK 導入で保守性向上の余地あり
 5. **エラーハンドリング**: 一部の catch ブロックが空（`catch {}` のパターン）
