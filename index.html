@@ -242,16 +242,24 @@
     }
 
     /* お問い合わせリンク（「まずは…」の下に置く用） */
-    .hero-contact {
+    .hero-trust {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 4px 0 8px;
+      letter-spacing: 0.02em;
+    }
+    .hero-links {
       font-size: 12px;
       color: var(--muted);
       margin: 2px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
-    .hero-contact a{
-      color: #f97373;
-      text-decoration: underline;
-      text-underline-offset: 3px;
-      cursor: pointer;
+    .hero-links-sep {
+      color: var(--line);
+    }
+    .hero-links a {
       font-weight: 700;
     }
 
@@ -426,12 +434,18 @@
       gap: 8px;
       margin-bottom: 8px;
     }
-    .problem-bullet {
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: #fb7185;
-      margin-top: 7px;
+    .problem-check {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 2px solid #fb7185;
+      flex: 0 0 auto;
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fb7185;
+      font-size: 12px;
     }
     .problem-strong {
       font-size: 14px;
@@ -501,6 +515,44 @@
       margin: 0;
     }
     .about-card-list li { margin-bottom: 4px; }
+
+    /* スクロール追従 CTA（モバイル用） */
+    .sticky-cta {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(229, 231, 235, 0.7);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: center;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+    .sticky-cta.visible {
+      transform: translateY(0);
+    }
+    .sticky-cta-btn {
+      width: 100%;
+      max-width: 360px;
+      padding: 13px 20px;
+      border-radius: 999px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(249, 115, 115, 0.4);
+      line-height: 1;
+    }
+    .sticky-cta-btn:hover { background: var(--accent-dark); }
+    @media (min-width: 801px) {
+      .sticky-cta { display: none; }
+    }
   </style>
 
   <!-- Google tag (gtag.js) -->
@@ -551,7 +603,7 @@
 
     <a href="chat.html" class="header-cta"
        onclick="track('click_start_free',{location:'header'});">
-      無料で相談してみる
+      無料で話してみる
     </a>
   </div>
 </header>
@@ -559,27 +611,30 @@
 <section class="hero">
   <!-- 左：コピー -->
   <div>
-    <h1 class="hero-title">MBTI×恋愛16タイプで</h1>
+    <h1 class="hero-title">
+      既読スルー、温度差、<br class="sp-br">
+      自分だけ本気な気がする。
+    </h1>
 
     <p class="hero-tagline">
-      あなたの悩みを、恋愛仙人が<br class="sp-br">
-      言語化する相談チャット。
+      その「ぐるぐる」、<br class="sp-br">
+      言語化してもらえる？
     </p>
 
     <!-- 仙人画像＋吹き出し -->
     <div class="sageRow">
       <img class="sageImg" src="./assets/senin_320.webp" alt="恋愛仙人" />
       <div class="bubble">
-        お主の恋のクセを5つ見抜いて<br />
-        『専用トリセツ』にして渡すぞ。
+        「気にしすぎ」じゃないぞ。<br />
+        お主のタイプだから、<br />
+        そう感じて当然なんじゃ。
       </div>
     </div>
 
     <p class="hero-sub">
-      LINEの一言から、次に会ったときの空気まで。<br />
-      ぐるぐるしがちな恋のモヤモヤを、
-      MBTI×恋愛16タイプにもとづいて、
-      感情を否定せずに冷静に言語化する恋愛レポートです。
+      MBTI×恋愛16タイプをもとに、恋愛仙人が<br />
+      あなたの恋のモヤモヤを冷静に言語化。<br />
+      感情を否定しない、あなた専用の恋愛レポートです。
     </p>
 
     <div class="hero-cta-row" id="start-chat">
@@ -588,22 +643,21 @@
           track('click_start_free',{location:'hero'});
           window.location.href='chat.html';
         ">
-        無料で恋愛仙人に相談してみる
+        無料で話してみる（ログイン不要）
       </button>
-
-      <span class="hero-cta-sub">
-        まずは
-        <span class="hero-cta-link" onclick="safeScrollTo('about')">
-          サービスの内容を見る
-        </span>
-      </span>
     </div>
 
-    <!-- ★追加：お問い合わせはこちら（Twitter/Xへ） -->
-    <div class="hero-contact">
+    <p class="hero-trust">ニックネームだけでOK・6回の会話で無料レポートがもらえる</p>
+
+    <div class="hero-links">
+      <span class="hero-cta-link" onclick="safeScrollTo('about')">
+        サービスの内容を見る
+      </span>
+      <span class="hero-links-sep">｜</span>
       <a href="https://x.com/koigurulab?s=21" target="_blank" rel="noopener noreferrer"
+         class="hero-cta-link"
          onclick="track('click_contact',{location:'hero'});">
-        お問い合わせはこちら
+        お問い合わせ
       </a>
     </div>
 
@@ -665,23 +719,23 @@
 <!-- 共感ゾーン（問題提起） -->
 <section id="problem" class="section section-problem">
   <div>
-    <div class="section-eyebrow">こんな「考えすぎグセ」に心当たりはありますか？</div>
-    <h2 class="section-title">「考えすぎ」と言われても、止められない。</h2>
+    <div class="section-eyebrow">当てはまったら、仙人の出番かもしれん</div>
+    <h2 class="section-title">こんな「ぐるぐる」、<br>覚えはないかのう？</h2>
     <p class="section-lead">
-      頭では分かっていても、心が追いつかない。<br>
-      そんな恋のモヤモヤを、ひとりで抱え込んでいませんか？
+      ひとつでも当てはまったら、恋愛仙人に話してみてほしいのじゃ。
     </p>
 
     <ul class="problem-list">
-      <li><span class="problem-bullet"></span><span>LINEの一言に、一喜一憂してしまう。</span></li>
-      <li><span class="problem-bullet"></span><span>既読スルーの理由を、何十パターンも考えてしまう。</span></li>
-      <li><span class="problem-bullet"></span><span>友達に相談しても、「気にしすぎだよ」で終わってモヤモヤが残る。</span></li>
-      <li><span class="problem-bullet"></span><span>占いは好きだけど、「結局どうすればいいのか」は分からないまま。</span></li>
+      <li><span class="problem-check">&#10003;</span><span>既読スルーの理由を、何十パターンも想像してしまう</span></li>
+      <li><span class="problem-check">&#10003;</span><span>LINEの一言で、1日の気分が左右される</span></li>
+      <li><span class="problem-check">&#10003;</span><span>友達に相談しても「考えすぎだよ」で終わる</span></li>
+      <li><span class="problem-check">&#10003;</span><span>自分だけが本気な気がして、不安になる</span></li>
+      <li><span class="problem-check">&#10003;</span><span>占いは好きだけど、「で、どうすれば？」がわからない</span></li>
     </ul>
 
     <div class="problem-strong">
-      それは「重すぎる」んじゃなくて、<br>
-      ちゃんと自分と相手のことを考える、まじめさと優しさでもあります。
+      「重すぎ」なんかじゃない。<br>
+      それだけ真剣に考えられるのは、お主の強さじゃよ。
     </div>
   </div>
 
@@ -753,6 +807,40 @@
     </div>
   </div>
 </section>
+
+<!-- スクロール追従 CTA（モバイル） -->
+<div class="sticky-cta" id="stickyCta">
+  <button class="sticky-cta-btn"
+    onclick="
+      track('click_start_free',{location:'sticky'});
+      window.location.href='chat.html';
+    ">
+    無料で話してみる
+  </button>
+</div>
+
+<script>
+(function(){
+  var stickyCta = document.getElementById('stickyCta');
+  var heroCtaRow = document.getElementById('start-chat');
+  if (!stickyCta || !heroCtaRow) return;
+
+  var lastVisible = true;
+  function onScroll(){
+    var rect = heroCtaRow.getBoundingClientRect();
+    var visible = rect.bottom > 0;
+    if (visible === lastVisible) return;
+    lastVisible = visible;
+    if (visible) {
+      stickyCta.classList.remove('visible');
+    } else {
+      stickyCta.classList.add('visible');
+    }
+  }
+  window.addEventListener('scroll', onScroll, {passive: true});
+  onScroll();
+})();
+</script>
 
 </body>
 </html>
