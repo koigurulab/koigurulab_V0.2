@@ -7,7 +7,13 @@ export default async function handler(req, res) {
     if (!rawKey) return res.status(500).send("Missing OPENAI_API_KEY");
     const apiKey = rawKey.trim();
 
-    const summaryJson = req.body || {};
+    // tier対応: body が { summaryJson, tier } の場合と、直接 summaryJson の場合の両方に対応
+    let summaryJson = req.body || {};
+    let tier = "480";
+    if (summaryJson.summaryJson && typeof summaryJson.summaryJson === "object") {
+      tier = String(summaryJson.tier || "480");
+      summaryJson = summaryJson.summaryJson;
+    }
     if (!summaryJson || typeof summaryJson !== "object") {
       return res.status(400).send("Invalid body. Expected summaryJson object.");
     }
@@ -93,6 +99,41 @@ ToDo（3日・1週・1ヶ月）は各案の中に自然に吸収してよい。
 出力はテキストのみ（JSONやコードブロックは出さない）。
 `.trim();
 
+    // tier別の追加プロンプト
+    let tierAddendum = "";
+    if (tier === "980") {
+      tierAddendum = `
+
+追加章（攻略レポート専用）：
+上記の章立てに加え、【結び】の直前に以下の章を追加する：
+
+- 【8】相手の心理スイッチ
+  相手のMBTI・恋愛タイプ・partner_key_traitsから推測される心理スイッチ（嬉しいポイント・地雷ポイント）を解説する。
+  「こう言われると心を開く」「これをやると一気に冷める」を具体的に。800〜1200字。
+
+合計文字数を12000〜16000字に拡張する。各章を少し厚めに書いてよい。
+`;
+    } else if (tier === "1980") {
+      tierAddendum = `
+
+追加章（個別戦略書専用）：
+上記の章立てに加え、【結び】の直前に以下の章を追加する：
+
+- 【8】相手の心理スイッチ
+  相手のMBTI・恋愛タイプ・partner_key_traitsから推測される心理スイッチ（嬉しいポイント・地雷ポイント）を具体的に解説。800〜1200字。
+
+- 【9】リスクシナリオと回避策
+  今の状況で起きうる最悪のパターンを2〜3個提示し、それぞれの回避策・リカバリ手順を書く。800〜1200字。
+
+- 【10】仙人の総括：お主だけの攻略マップ
+  全体を俯瞰した上で、この恋愛の「勝ち筋」と「撤退ライン」を明示する。500〜800字。
+
+合計文字数を15000〜20000字に拡張する。各章を厚めに書き、具体性を最大化する。
+`;
+    }
+
+    const fullSystemPrompt = SYSTEM_PROMPT + tierAddendum;
+
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -104,7 +145,7 @@ ToDo（3日・1週・1ヶ月）は各案の中に自然に吸収してよい。
         temperature: 0.7,
         stream: true,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: fullSystemPrompt },
           { role: "user", content: JSON.stringify(summaryJson, null, 2) },
         ],
       }),

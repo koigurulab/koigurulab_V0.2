@@ -298,6 +298,144 @@
   box-shadow: 0 14px 30px rgba(248, 113, 113, 0.30);
 }
 .choice.is-selected:hover { filter: brightness(0.98); }
+
+/* ===== 3-tier pricing cards ===== */
+.tier-wrap {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 8px;
+  width: 100%;
+}
+.tier-card {
+  flex: 1;
+  min-width: 0;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  transition: border-color .2s, box-shadow .2s;
+}
+.tier-card.is-recommended {
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(249,115,115,.22);
+}
+.tier-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f97373, #fb7185);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: .04em;
+}
+.tier-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 6px 0 2px;
+}
+.tier-price {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--accent-dark);
+  line-height: 1.1;
+}
+.tier-price small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.tier-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 6px 0 8px;
+  line-height: 1.5;
+}
+.tier-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  text-align: left;
+  width: 100%;
+}
+.tier-features li {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 2px 0;
+  color: var(--ink);
+}
+.tier-features li::before {
+  content: "\2713 ";
+  color: var(--accent);
+  font-weight: 700;
+}
+.tier-features li.is-muted {
+  color: var(--muted);
+  opacity: .5;
+}
+.tier-features li.is-muted::before {
+  content: "\2014 ";
+  color: var(--muted);
+}
+.tier-btn {
+  appearance: none;
+  width: 100%;
+  padding: 9px 6px;
+  border-radius: 999px;
+  border: 1.5px solid var(--accent);
+  background: #fff;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-top: auto;
+  transition: background .15s, color .15s;
+}
+.tier-btn:hover {
+  background: #fff3f3;
+}
+.tier-btn.is-primary {
+  background: linear-gradient(135deg, #f97373, #fb7185);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(249,115,115,.30);
+}
+.tier-btn.is-primary:hover {
+  filter: brightness(.96);
+}
+.tier-later {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 0;
+}
+.tier-later:hover {
+  color: var(--ink);
+}
+.tier-note {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
     .progress-wrap{
   margin-top: 10px;
   display: flex;
@@ -1554,11 +1692,11 @@ function loadSessionByToken(token) {
   }
 }
 
-async function startCheckout(token) {
+async function startCheckout(token, tier) {
   const r = await fetch("/api/create-checkout-session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token }),
+    body: JSON.stringify({ token, tier: tier || "480" }),
   });
   const text = await r.text();
   if (!r.ok) throw new Error(`checkout-session error: ${r.status} ${text}`);
@@ -1657,52 +1795,116 @@ choicesWrap.innerHTML = "";
 
 function showPaywallButtons(token) {
   choicesWrap.innerHTML = "";
-track('paywall_shown', { token_present: !!token });
-   // ★注意1行（最重要：別端末/別ブラウザ事故を防ぐ）
+  track('paywall_shown', { token_present: !!token });
+
+  addAssistant("…ふむ、今日はここまでにしておこうかのう。無料版はここまでじゃ。お主専用の『完全版レポート』を用意しておる。どれにするか選ぶがよい。");
+
+  // 注意文
   const warn = document.createElement("div");
-  warn.style.margin = "10px 0";
-  warn.style.padding = "10px 12px";
-  warn.style.borderRadius = "12px";
-  warn.style.border = "1px solid rgba(249, 115, 115, 0.35)";
-  warn.style.background = "rgba(255, 228, 230, 0.65)";
-  warn.style.fontWeight = "700";
-  warn.style.lineHeight = "1.6";
-  warn.textContent =
-    "※この端末・このブラウザのまま決済完了まで進むのじゃ（Safari/Chrome切替・シークレットモード・端末変更はNGじゃ）";
+  warn.style.cssText = "margin:8px 0;padding:8px 10px;border-radius:10px;border:1px solid rgba(249,115,115,.35);background:rgba(255,228,230,.65);font-weight:700;font-size:11px;line-height:1.5;";
+  warn.textContent = "※この端末・このブラウザのまま決済完了まで進むのじゃ";
   choicesWrap.appendChild(warn);
 
-  addAssistant("…ふむ、今日はここまでにしておこうかのう。無料版はここまでじゃ。続きの『有料レポート（完全版）』は購入後にわしが丹精込めて書いて渡すぞい。");
+  // 3-tier cards
+  const tierData = [
+    {
+      tier: "480", name: "診断レポート", price: "480",
+      desc: "まずは自分を知りたい人に",
+      features: [
+        "全7章の性格・恋愛分析",
+        "恋の5つのクセ診断",
+        "自分ルール＆行動プラン",
+      ],
+      mutedFeatures: [
+        "LINEテンプレ",
+        "NG行動チェックリスト",
+      ],
+      recommended: false,
+    },
+    {
+      tier: "980", name: "攻略レポート", price: "980",
+      desc: "具体的に動きたい人に",
+      features: [
+        "診断レポートの全内容",
+        "相手の心理スイッチ解説",
+        "LINEテンプレ 3本",
+        "NG行動チェックリスト",
+        "連絡タイミングガイド",
+      ],
+      mutedFeatures: [],
+      recommended: true,
+    },
+    {
+      tier: "1980", name: "個別戦略書", price: "1,980",
+      desc: "本気で攻略したい人に",
+      features: [
+        "攻略レポートの全内容",
+        "LINEテンプレ 10本",
+        "7日間アクションプラン",
+        "脈あり／撤退 判定表",
+        "返信来た／来ない分岐表",
+        "リスクシナリオ＆回避策",
+      ],
+      mutedFeatures: [],
+      recommended: false,
+    },
+  ];
 
-  const buyBtn = document.createElement("button");
-  buyBtn.className = "choice";
-  buyBtn.textContent = "購入して有料レポートを作る（Stripe）";
-  buyBtn.addEventListener("click", async () => {
-    track('click_buy', { location: 'paywall', token_present: !!token });
-    try {
-      setBusy(true);
-      statusEl.textContent = "決済画面へ移動中じゃ…";
-      track('begin_checkout', { location: 'paywall' });
-      await startCheckout(token);
-    } catch (err) {
-      console.error(err);
-      addAssistant("決済ページへの遷移に失敗したようじゃ。/api/create-checkout-session を確認してくれんかのう。");
-    } finally {
-      statusEl.textContent = "";
-      setBusy(false);
-    }
+  const wrap = document.createElement("div");
+  wrap.className = "tier-wrap";
+
+  tierData.forEach(t => {
+    const card = document.createElement("div");
+    card.className = "tier-card" + (t.recommended ? " is-recommended" : "");
+
+    let html = "";
+    if (t.recommended) html += '<div class="tier-badge">迷ったらコレ</div>';
+    html += '<div class="tier-name">' + t.name + '</div>';
+    html += '<div class="tier-price">&yen;' + t.price + '<small> /買い切り</small></div>';
+    html += '<div class="tier-desc">' + t.desc + '</div>';
+    html += '<ul class="tier-features">';
+    t.features.forEach(f => { html += '<li>' + f + '</li>'; });
+    t.mutedFeatures.forEach(f => { html += '<li class="is-muted">' + f + '</li>'; });
+    html += '</ul>';
+    html += '<button class="tier-btn' + (t.recommended ? ' is-primary' : '') + '">購入する</button>';
+    card.innerHTML = html;
+
+    const btn = card.querySelector(".tier-btn");
+    btn.addEventListener("click", async () => {
+      track('click_buy', { location: 'paywall', tier: t.tier, token_present: !!token });
+      try {
+        setBusy(true);
+        statusEl.textContent = "決済画面へ移動中じゃ…";
+        track('begin_checkout', { location: 'paywall', tier: t.tier });
+        await startCheckout(token, t.tier);
+      } catch (err) {
+        console.error(err);
+        addAssistant("決済ページへの遷移に失敗したようじゃ。もう一度試してくれんかのう。");
+      } finally {
+        statusEl.textContent = "";
+        setBusy(false);
+      }
+    });
+
+    wrap.appendChild(card);
   });
 
+  choicesWrap.appendChild(wrap);
 
+  // 補足テキスト
+  const note = document.createElement("div");
+  note.className = "tier-note";
+  note.textContent = "全プラン買い切り。追加料金なし。カフェ1杯分から始められるぞい。";
+  choicesWrap.appendChild(note);
 
+  // 「購入しない」ボタン
   const laterBtn = document.createElement("button");
-  laterBtn.className = "choice secondary";
-  laterBtn.textContent = "今は購入しない（終了）";
+  laterBtn.className = "tier-later";
+  laterBtn.textContent = "今は購入しない";
   laterBtn.addEventListener("click", () => {
     addAssistant("了解じゃ。必要になったらまた来るがよいぞ。");
     choicesWrap.innerHTML = "";
   });
-
-  choicesWrap.appendChild(buyBtn);
   choicesWrap.appendChild(laterBtn);
 }
 

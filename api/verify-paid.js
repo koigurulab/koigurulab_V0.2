@@ -114,6 +114,7 @@ export default async function handler(req, res) {
       status,
       // フロント側で必要なら参照できるように最小限返す
       session_id: data.id,
+      tier: data.metadata?.tier || "480",
     });
   } catch (err) {
     return res.status(500).json({

@@ -51,6 +51,11 @@ export default async function handler(req, res) {
 - 章タイトルに（ ）を付けない。内部注釈（例：最低3案、断定しない等）は本文に出さず、内容で満たす。
 - 「ユーザ発言:」等の内部メモ・参照番号・メタ文章は絶対に混ぜない。
 
+追加フィールド（付録ツール生成用の素材）：
+- situation_phase: 現在の恋愛フェーズを次の中から1つ選ぶ：片思い / 曖昧な関係 / 交際中 / 既読スルー・音信不通 / 別れかけ / 復縁希望 / その他
+- partner_key_traits: 相手の行動パターンを3〜5個の短文で箇条書き（profile/historyから抽出。捏造禁止）。
+  例：「返信が遅いが会うと優しい」「予定を曖昧にしがち」「褒め言葉が少ない」等
+
 文字量の目安（各フィールドの中身）：
 - opening_current_position: 900〜1200字
 - fortune_traits（5つ合計）: 900〜1200字相当（各trait_bodyは短すぎない）
@@ -79,6 +84,8 @@ export default async function handler(req, res) {
         "chapter6_line_templates",
         "chapter7_action_plans",
         "ending_last_words",
+        "situation_phase",
+        "partner_key_traits",
       ],
       properties: {
         title: { type: "string" },
@@ -118,6 +125,15 @@ export default async function handler(req, res) {
 
         // ⑤：クロージング改名（paid-report 側で「結び：仙人からの最後のひと言」として出す）
         ending_last_words: { type: "string" },
+
+        // 付録ツール生成用素材
+        situation_phase: { type: "string" },
+        partner_key_traits: {
+          type: "array",
+          minItems: 3,
+          maxItems: 5,
+          items: { type: "string" },
+        },
       },
     };
 
