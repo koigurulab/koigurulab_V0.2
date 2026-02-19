@@ -787,9 +787,9 @@ function getAssistantTurn() {
   return history.filter(m => m.role === "assistant").length + 1;
 }
 function getPhaseFromTurn(turn) {
-  if (turn <= 3) return "F";
-  if (turn <= 4) return "P";
-  return "D";
+  if (turn <= 2) return "F";  // ターン1-2: Feeling（自分の感情）
+  if (turn <= 4) return "P";  // ターン3-4: Partner（相手のパターン）
+  return "D";                 // ターン5-6: Direction（方向性）
 }
 function getQuestionTheme(phase) {
   if (phase === "F") return "今いちばんしんどいと感じていそうなポイント";
@@ -941,7 +941,7 @@ MBTI: ${d.code}
 
       try {
         scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs));
+        const reply = await withRetry(()=>callOpenAI(msgs, 800));
         hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
@@ -993,7 +993,7 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
       try {
         scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs));
+        const reply = await withRetry(()=>callOpenAI(msgs, 800));
         hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
@@ -1043,7 +1043,7 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
       try {
         scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs));
+        const reply = await withRetry(()=>callOpenAI(msgs, 800));
         hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
@@ -1078,7 +1078,7 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 　「${tMbti}らしい内面のクセ」と「${value}らしい恋の動き方」が合わさるとどう見えやすいかを描く。
 ・必要に応じて、お主側のタイプとの噛み合い／ズレも一言触れてよい。
 ・最後は1〜2文で、
-　「惹かれるが読みにくい相手かもしれんのう」など、あくまで“パターン”としてまとめて締める。
+　「惹かれるが読みにくい相手かもしれんのう」など、あくまで"パターン"としてまとめて締める。
 ・全体で350〜500文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
@@ -1098,7 +1098,7 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
       try {
         scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs));
+        const reply = await withRetry(()=>callOpenAI(msgs, 800));
         hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
@@ -1169,10 +1169,9 @@ function showAsk(){
 /* ===========================
    7) OpenAI 呼び出し（/api/chat 経由）※429リトライ対応版
    =========================== */
-// chat.html 内：callOpenAI(messages) をこの関数に丸ごと置換
-async function callOpenAI(messages) {
-  const TIMEOUT_MS = 120_000; // 取説・長文を考慮（最低でも90s推奨）
-  const MAX_RETRIES = 2;      // 429/504のみ軽くリトライ
+async function callOpenAI(messages, maxTokens = 900) {
+  const TIMEOUT_MS = 120_000;
+  const MAX_RETRIES = 2;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -1184,7 +1183,7 @@ async function callOpenAI(messages) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages, maxTokens }),
         signal: controller.signal,
       });
 
@@ -1372,7 +1371,7 @@ const COMMON_SYS_TEMPLATE = String.raw`
 ・返答の最後は必ず、「内心セリフの選択肢」で締めること。
 
   1. 番号付きの内心セリフを 4つ 用意する。
-     - すべて {{me}} 一人称の“心の声”として書く。
+     - すべて {{me}} 一人称の"心の声"として書く。
      - 仙人語は禁止。
      - メタ情報 question_theme に合った内容にする
        （例：「いま一番しんどいポイント」「相手の動きの解釈」「これからどう進みたいか」など）
@@ -1482,6 +1481,7 @@ const SYS_PHASE_D = String.raw`
 ・番号付きの内心セリフや「どれが近いか」などの問いを出してはならない。
 `;
 
+
 /* ===========================
    9) systemビルダー & メタ生成
    =========================== */
@@ -1588,7 +1588,7 @@ async function startFirstTurn(){
 
   try{
     scheduleTypingBubble(2000);            // ★追加
-    const reply = await withRetry(()=>callOpenAI(msgs));
+    const reply = await withRetry(()=>callOpenAI(msgs, 1800));
     hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
     addAssistant(reply);
     // ★この時点で「無料相談 1回消化」
@@ -1741,6 +1741,45 @@ async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
 }
 
 /* ===========================
+   13.5) 無料レポート生成中のローテーションメッセージ
+   （summaryJson生成〜レポート出力まで、5秒ごとに切り替える）
+   =========================== */
+const REPORT_LOADING_MSGS = [
+  "お主の性格を考えておる…",
+  "相手の性格を考えておる…",
+  "二人の恋の構図を整理しておる…",
+  "お主の恋の癖を洗い出しておる…",
+  "しんどさの根っこを探しておる…",
+  "相手の行動パターンを読んでおる…",
+  "お主の感情の流れをたどっておる…",
+  "二人の相性の深いところを見ておる…",
+  "お主専用の言葉を選んでおる…",
+  "仙人が最後の仕上げをしておる…",
+];
+let _reportLoadingTimer = null;
+let _reportMsgIdx = 0;
+
+function startReportLoading() {
+  _reportMsgIdx = 0;
+  statusEl.textContent = REPORT_LOADING_MSGS[0];
+  _reportLoadingTimer = setInterval(() => {
+    // 最後のメッセージに達したらループせずそのまま維持
+    if (_reportMsgIdx < REPORT_LOADING_MSGS.length - 1) {
+      _reportMsgIdx++;
+      statusEl.textContent = REPORT_LOADING_MSGS[_reportMsgIdx];
+    }
+  }, 5000);
+}
+
+function stopReportLoading() {
+  if (_reportLoadingTimer) {
+    clearInterval(_reportLoadingTimer);
+    _reportLoadingTimer = null;
+  }
+  statusEl.textContent = "";
+}
+
+/* ===========================
    14) 6回目終了後：無料レポ → 購入ボタン表示 → 入力ロック
    =========================== */
 async function endFreeChatAndShowPaywall() {
@@ -1755,17 +1794,16 @@ hideProgress();
   lockChatInput("無料レポートは完了じゃ。購入ボタンから進めてくれ。");
 
   setBusy(true);
-  statusEl.textContent = "仙人がまとめを用意しておる…";
+  // ローテーションメッセージ開始（summaryJson生成中は5秒ごとに切り替わる）
+  startReportLoading();
 
   try {
     scheduleTypingBubble(2000);
     // 1) summaryJson（設計図）作成（有料と同じ）
     const summaryJson = await fetchPaidSummaryJson();
-     hideTypingBubble();
+    hideTypingBubble();
 
-
-    // 2) 無料レポート（切り取り）をストリーム表示
-    statusEl.textContent = "仙人が無料レポートを書いておる…";
+    // 2) 無料レポート（切り取り）をストリーム表示（ローテーションはそのまま継続）
     await streamTextPlain(
       "/api/free-report-stream",
       summaryJson,
@@ -1785,9 +1823,10 @@ choicesWrap.innerHTML = "";
   } catch (e) {
     console.error(e);
     paywallShown = false;
-    addAssistant("すまぬのう、無料レポートの生成で詰まってしもうた。/api/free-report-stream と /api/paid-summary を確認してくれんか。");
-    addAssistant("一度ページを更新して、もう一度試してくれんかのう。");
+    addAssistant("すまぬのう、無料レポートの生成で詰まってしもうた。ページを一度更新して、もう一度試してくれんかのう。");
+    addAssistant("それでもうまくいかない場合は、少し時間をおいてから試してみてくれ。");
   } finally {
+    stopReportLoading(); // タイマーが残っていればここでクリア
     statusEl.textContent = "";
     setBusy(false);
   }
@@ -1908,6 +1947,7 @@ function showPaywallButtons(token) {
   choicesWrap.appendChild(laterBtn);
 }
 
+
 /* ===========================
    15) 以降のやり取り（通常チャット）
    - 8回目の仙人返信後に無料レポ→課金導線→入力ロック
@@ -1947,7 +1987,7 @@ async function sendFree(){
 
   try{
     scheduleTypingBubble(2000);            // ★追加
-    const reply = await withRetry(()=>callOpenAI(msgs));
+    const reply = await withRetry(()=>callOpenAI(msgs, 1800));
     hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
     addAssistant(reply);
     // ★この時点で「無料相談 1回消化」
