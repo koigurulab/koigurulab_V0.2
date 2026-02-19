@@ -383,70 +383,97 @@
     }
 
     /* ══════════════════════════════
-       PLAN（無料 vs 有料）
+       PLAN（3プラン）
     ══════════════════════════════ */
+    .plan-free-note {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f3f4f6;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .plan-free-note strong { color: var(--ink); }
+
     .plan-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      align-items: start;
     }
-    @media (max-width: 420px) {
-      .plan-grid { grid-template-columns: 1fr; }
+    @media (max-width: 540px) {
+      .plan-grid { grid-template-columns: 1fr; gap: 12px; }
     }
 
     .plan-card {
       border-radius: var(--radius-md);
-      padding: 20px 16px;
+      padding: 18px 14px 16px;
       border: 1.5px solid var(--border);
       background: var(--bg-white);
+      position: relative;
     }
     .plan-card.featured {
       border-color: var(--accent);
-      background: linear-gradient(135deg, #fff0f2, #fff7f8);
-      box-shadow: 0 8px 24px rgba(249,115,115,.15);
+      background: linear-gradient(160deg, #fff0f2, #fff7f8);
+      box-shadow: 0 10px 28px rgba(249,115,115,.18);
     }
-    .plan-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 10px;
-      border-radius: var(--radius-pill);
-      margin-bottom: 10px;
-    }
-    .plan-card:not(.featured) .plan-badge {
-      background: #f3f4f6;
-      color: var(--muted);
-    }
-    .plan-card.featured .plan-badge {
-      background: var(--accent);
+    /* おすすめバッジ */
+    .plan-rec-badge {
+      position: absolute;
+      top: -11px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #f97373, #fb7185);
       color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 12px;
+      border-radius: var(--radius-pill);
+      white-space: nowrap;
+      letter-spacing: .04em;
     }
+    .plan-name {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted);
+      margin-bottom: 4px;
+      margin-top: 4px;
+    }
+    .plan-card.featured .plan-name { color: var(--accent-dark); }
     .plan-price {
       font-size: 22px;
       font-weight: 900;
       color: var(--ink);
-      margin-bottom: 12px;
       line-height: 1;
+      margin-bottom: 4px;
     }
-    .plan-price span {
-      font-size: 13px;
+    .plan-price small {
+      font-size: 11px;
       font-weight: 500;
       color: var(--muted);
+    }
+    .plan-desc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.5;
     }
     .plan-features {
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 7px;
-      font-size: 13px;
+      gap: 6px;
+      font-size: 12px;
       color: #374151;
     }
     .plan-features li {
       display: flex;
       align-items: flex-start;
-      gap: 7px;
+      gap: 6px;
+      line-height: 1.45;
     }
     .plan-features li::before {
       content: "✓";
@@ -456,7 +483,7 @@
       margin-top: 1px;
     }
     .plan-lock { color: #d1d5db !important; }
-    .plan-lock::before { content: "✗" !important; color: #d1d5db !important; }
+    .plan-lock::before { content: "–" !important; color: #d1d5db !important; }
 
     /* ══════════════════════════════
        RELIEF（不安つぶし）
@@ -752,35 +779,57 @@
 <!-- ══════════════════ PLAN ══════════════════ -->
 <section class="section section-alt" id="plan">
   <div class="section-inner">
-    <div class="eyebrow">無料と有料のちがい</div>
-    <h2 class="section-title">無料でここまで、<br>有料でもっと深く。</h2>
-    <p class="section-lead">まずは無料で試してみてください。</p>
+    <div class="eyebrow">プラン</div>
+    <h2 class="section-title">相談後に選べる、<br>3つのプラン。</h2>
+    <p class="section-lead">チャット＋無料レポートはすべて無料。<br>もっと深く知りたい方向けに3プラン用意しています。</p>
+
+    <!-- 無料メモ -->
+    <div class="plan-free-note">
+      ✅ <span><strong>無料で受け取れるもの：</strong>チャット6ターン ＋ 恋のクセ5項目 ＋ 無料レポート3,000字+</span>
+    </div>
 
     <div class="plan-grid">
-      <!-- 無料 -->
+      <!-- ¥480 -->
       <div class="plan-card">
-        <div class="plan-badge">無料</div>
-        <div class="plan-price">¥0 <span>/ 回</span></div>
+        <div class="plan-name">診断レポート</div>
+        <div class="plan-price">¥480<small> /買い切り</small></div>
+        <div class="plan-desc">まず自分を知りたい人に</div>
         <ul class="plan-features">
-          <li>チャット6ターン</li>
-          <li>恋のクセ 5項目（概要）</li>
-          <li>無料レポート 3,000字+</li>
-          <li class="plan-lock">2人の構図詳細分析</li>
-          <li class="plan-lock">今週やること提案</li>
-          <li class="plan-lock">全章フルレポート</li>
+          <li>全7章 性格・恋愛分析</li>
+          <li>恋のクセ5項目（詳細）</li>
+          <li>自分ルール＆行動プラン</li>
+          <li class="plan-lock">LINEテンプレ</li>
+          <li class="plan-lock">NG行動チェックリスト</li>
+          <li class="plan-lock">連絡タイミングガイド</li>
         </ul>
       </div>
-      <!-- 有料 -->
+
+      <!-- ¥980 おすすめ -->
       <div class="plan-card featured">
-        <div class="plan-badge">フルレポート</div>
-        <div class="plan-price">¥480 <span>/ 買い切り</span></div>
+        <div class="plan-rec-badge">迷ったらコレ</div>
+        <div class="plan-name">攻略レポート</div>
+        <div class="plan-price">¥980<small> /買い切り</small></div>
+        <div class="plan-desc">具体的に動きたい人に</div>
         <ul class="plan-features">
-          <li>チャット6ターン</li>
-          <li>恋のクセ 5項目（詳細）</li>
-          <li>無料レポート 3,000字+</li>
-          <li>2人の構図詳細分析</li>
-          <li>今週やること提案</li>
-          <li>全章フルレポート 10,000字+</li>
+          <li>診断レポートの全内容</li>
+          <li>相手の心理スイッチ解説</li>
+          <li>LINEテンプレ 3本</li>
+          <li>NG行動チェックリスト</li>
+          <li>連絡タイミングガイド</li>
+        </ul>
+      </div>
+
+      <!-- ¥1980 -->
+      <div class="plan-card">
+        <div class="plan-name">個別戦略書</div>
+        <div class="plan-price">¥1,980<small> /買い切り</small></div>
+        <div class="plan-desc">本気で攻略したい人に</div>
+        <ul class="plan-features">
+          <li>攻略レポートの全内容</li>
+          <li>LINEテンプレ 10本</li>
+          <li>7日間アクションプラン</li>
+          <li>脈あり／撤退 判定表</li>
+          <li>リスクシナリオ＆回避策</li>
         </ul>
       </div>
     </div>
