@@ -24,10 +24,14 @@ export default async function handler(req, res) {
       });
     }
 
-    const { messages } = req.body || {};
+    const { messages, maxTokens: rawMaxTokens } = req.body || {};
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "messages is required" });
     }
+
+    // 呼び出し元が種別ごとに上限を指定できる（通常ターン:900 / 深掘り:1500 / quickAck:450）
+    // 安全のため 100〜1800 の範囲にクランプ
+    const clampedMaxTokens = Math.min(Math.max(parseInt(rawMaxTokens) || 900, 100), 1800);
 
     // --- HTML側の messages を尊重（system を捨てない）
     // role は system/user/assistant のみ許可。content は文字列化。
@@ -46,10 +50,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "valid messages are required" });
     }
 
-    // --- 生成パラメータ（まず元品質復旧優先）
-    // 0.7 は崩れやすいので、戻したいなら 0.5 推奨
+    // --- 生成パラメータ
     const MODEL = "gpt-4.1-mini";
-    const MAX_TOKENS = 1800;
+    const MAX_TOKENS = clampedMaxTokens; // 呼び出し元が種別で制御（通常:900 / 深掘り:1500 / quickAck:450）
     const TEMPERATURE = 0.7;
     const TIMEOUT_MS = 120_000;
 

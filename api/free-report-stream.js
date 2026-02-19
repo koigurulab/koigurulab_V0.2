@@ -165,9 +165,16 @@ D) しんどさの正体（1〜2文）：このクセが長引かせる理由を
 
     res.end();
   } catch (err) {
+    console.error("[free-report-stream] error:", err);
     try {
-      res.statusCode = 500;
-      res.end(`Unexpected server error: ${String(err)}`);
-    } catch {}
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.end("すまぬのう、レポートの生成に失敗したようじゃ。少し時間をおいてからもう一度試してくれんかのう。");
+      } else {
+        res.end();
+      }
+    } catch (_) {
+      // レスポンスが既に終了済みの場合は何もしない
+    }
   }
 }
