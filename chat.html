@@ -787,9 +787,9 @@ function getAssistantTurn() {
   return history.filter(m => m.role === "assistant").length + 1;
 }
 function getPhaseFromTurn(turn) {
-  if (turn <= 3) return "F";
-  if (turn <= 4) return "P";
-  return "D";
+  if (turn <= 2) return "F";  // ターン1-2: Feeling（自分の感情）
+  if (turn <= 4) return "P";  // ターン3-4: Partner（相手のパターン）
+  return "D";                 // ターン5-6: Direction（方向性）
 }
 function getQuestionTheme(phase) {
   if (phase === "F") return "今いちばんしんどいと感じていそうなポイント";
@@ -918,11 +918,11 @@ async function quickAcknowledge(key, value){
 
 出力条件：
 ・最初の1文は必ず「ほう、${d.code}か。」の形で始める。
-・続く2〜3文で、下記の説明をもとに「普段の性格」と「恋愛で出やすい心のクセ」を仙人口調で占いっぽく語る。
-・最後に1文で、
-　「では次に、${profile.name || "お主"}の恋愛16タイプを教えてくれ」
+・続く3〜5文で、下記の説明をもとに「普段の性格」と「恋愛で出やすい心のクセ」を仙人口調で占いっぽく語る。
+・最後に1〜2文で、
+　「では次に、${profile.name || "お主"}の恋愛16タイプを教えてくれ。分からなければ『わからない』でもかまわんぞ」
 　という意味の文で、次の質問につなげる。
-・全体でおおよそ150〜230文字程度（短くてよい）。
+・全体でおおよそ350〜500文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
           `.trim()
@@ -941,7 +941,7 @@ MBTI: ${d.code}
 
       try {
         scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs, 450));
+        const reply = await withRetry(()=>callOpenAI(msgs, 800));
         hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
@@ -966,11 +966,15 @@ MBTI: ${d.code}
 
 出力条件：
 ・最初の1文は必ず「ほう、「${value}」タイプか。」で始める。
-・続く2〜3文で、この恋愛16タイプの特徴を占いっぽく語る（「感情の動き」「恋の入り方」のどれかに絞ってよい）。
+・続く3〜4文で、この恋愛16タイプの特徴を、
+　「感情の動き」「恋の入り方」「傷つきやすさ／不安の振れ幅」あたりに触れながら占いっぽく語る。
 ・もしMBTI情報（${mbti || "不明"}）がある場合は、
-　1文だけ「${value}×${mbti}」の掛け算で一言触れる。
-・最後に1文で、タイプ傾向をひと言でまとめて締める。
-・全体で180〜250文字程度（短くてよい）。
+　中盤〜後半で1〜2文使って
+　『${value}×${mbti}ってな、〜タイプなんじゃ。』
+　のように「掛け算」で性格当てを行い、そのクセが今回の恋でどう出やすいかを述べる。
+・最後に1〜2文で、
+　「${profile.name || "お主"}は情熱が強い分、反応の温度差に敏感になりやすいのう」など一言まとめつつ締める。
+・全体で450〜550文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
           `.trim()
@@ -989,7 +993,7 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
       try {
         scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs, 450));
+        const reply = await withRetry(()=>callOpenAI(msgs, 800));
         hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
@@ -1015,11 +1019,13 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
 出力条件：
 ・最初の文は必ず「承知したぞ。${d.code}（${d.jp}）の${targetLabel}とな。」の形で始める。
-・続く1〜2文で、このタイプの「恋愛でのテンポ」か「感情の出し方」をひとつ選んで語る。
-・最後の1文で、
-　「では次に、その相手の恋愛16タイプが分かるようなら教えてくれ」
-　という意味の文で次の質問につなげる。
-・全体で120〜200文字程度（短くてよい）。
+・続く3〜4文で、このタイプの
+　「行動の速さ／慎重さ」「恋愛でのテンポ」「感情の出し方」などを仙人目線で占いっぽく語る。
+・その中で1文は、お主目線での感じ方に軽く触れてよい。
+・最後の1〜2文で、
+　「では次に、その相手の恋愛16タイプが分かるようなら教えてくれ。わからなければ『わからない』でよいぞ」
+　という意味の文で、次の質問につなげる。
+・全体で300〜450文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
           `.trim()
@@ -1037,7 +1043,7 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
       try {
         scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs, 450));
+        const reply = await withRetry(()=>callOpenAI(msgs, 800));
         hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
@@ -1065,10 +1071,15 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
 出力条件：
 ・最初の1文は「承知したぞ。「${value}」タイプの${targetLabel}か…。」で始める。
-・続く2文で、この恋愛16タイプの特徴をひとつに絞って占いっぽく語る。
-・相手MBTI情報（${tMbti || "不明"}）がある場合は1文だけ掛け算で触れる。
-・最後は1文で、「読みにくい相手かもしれんのう」などパターンとしてまとめて締める。
-・全体で150〜220文字程度（短くてよい）。
+・続く3〜4文で、この恋愛16タイプの
+　「優しさ／自由さ」「小悪魔っぽさ」「距離の取り方」などを占いっぽく語る。
+・相手MBTI情報（${tMbti || "不明"}）がある場合は、
+　1〜2文を使って
+　「${tMbti}らしい内面のクセ」と「${value}らしい恋の動き方」が合わさるとどう見えやすいかを描く。
+・必要に応じて、お主側のタイプとの噛み合い／ズレも一言触れてよい。
+・最後は1〜2文で、
+　「惹かれるが読みにくい相手かもしれんのう」など、あくまで"パターン"としてまとめて締める。
+・全体で350〜500文字程度。
 ・仙人側の文の文末には、「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を適宜混ぜること。
 ・敬語やビジネス口調は禁止。
           `.trim()
@@ -1087,7 +1098,7 @@ MBTI説明: ${dMbti ? dMbti.summary : "情報なし"}
 
       try {
         scheduleTypingBubble(2000);            // ★追加
-        const reply = await withRetry(()=>callOpenAI(msgs, 450));
+        const reply = await withRetry(()=>callOpenAI(msgs, 800));
         hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
         addAssistant(reply.trim());
       } finally {
@@ -1249,13 +1260,6 @@ const COMMON_SYS_TEMPLATE = String.raw`
 （例：湖・炎・魂・運命・格言めいた言い回しなどは基本NG）
 
 ────────────────────
-◆ 文字数ルール（最優先）
-────────────────────
-返答全体は350字以内を目安にすること（短くて構わん）。
-核心だけを先に渡す。深掘りはお主が「もっと詳しく」と求めたときにやる。
-長くなりそうなら削って短くする。削ることを恐れるな。
-
-────────────────────
 ◆ タイプ名の扱いルール
 ────────────────────
 ・first_turn が false のときは、
@@ -1310,8 +1314,9 @@ const COMMON_SYS_TEMPLATE = String.raw`
   - その中で必ず、お主の性格当て（タイプの説明）を絡める。
     例：考え方のクセ、期待しやすさ、不安の膨らみ方、自分を責めやすいポイントなど。
 
-・このブロックは、1ターンごとに だいたい3〜4文程度 にする。
-  「一番刺さる気持ち」に絞って書くこと。全部書こうとしない。
+・このブロックは、1ターンごとに だいたい6〜10文程度 にする。
+  文数はターンごとに6〜10のあいだでばらつきが出るように書くこと。
+  （毎回きっちり同じ長さにはしない）
 
 ・書き方のイメージ：
   - 最初の数文で「今の気持ちA」を言語化
@@ -1366,14 +1371,14 @@ const COMMON_SYS_TEMPLATE = String.raw`
 ▼最後の問い（ターンの締め）
 ・返答の最後は必ず、「内心セリフの選択肢」で締めること。
 
-  1. 番号付きの内心セリフを 3つ 用意する。
+  1. 番号付きの内心セリフを 4つ 用意する。
      - すべて {{me}} 一人称の"心の声"として書く。
      - 仙人語は禁止。
      - メタ情報 question_theme に合った内容にする
        （例：「いま一番しんどいポイント」「相手の動きの解釈」「これからどう進みたいか」など）
 
-  2. 必ず 4番目に
-       「4. その他（自由に書いてよいぞ）」
+  2. 必ず 5番目に
+       「5. その他（自由に書いてよいぞ）」
      を入れる。
 
   3. 最後の1文は、
@@ -1607,7 +1612,7 @@ async function startFirstTurn(){
 
   try{
     scheduleTypingBubble(2000);            // ★追加
-    const reply = await withRetry(()=>callOpenAI(msgs, 900));
+    const reply = await withRetry(()=>callOpenAI(msgs, 1800));
     hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
     addAssistant(reply);
     // ★この時点で「無料相談 1回消化」
@@ -1762,6 +1767,38 @@ async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
 }
 
 /* ===========================
+   13.5) 無料レポート生成中のローテーションメッセージ
+   （summaryJson生成 ≒ 15〜20秒 の間、5秒ごとに切り替える）
+   =========================== */
+const REPORT_LOADING_MSGS = [
+  "お主の性格を分析しておる…",
+  "相手の行動パターンを読んでおる…",
+  "二人の関係の構図を整理しておる…",
+  "お主の恋の癖を洗い出しておる…",
+  "しんどさの根っこを探しておる…",
+  "仙人が最後の仕上げをしておる…",
+];
+let _reportLoadingTimer = null;
+let _reportMsgIdx = 0;
+
+function startReportLoading() {
+  _reportMsgIdx = 0;
+  statusEl.textContent = REPORT_LOADING_MSGS[0];
+  _reportLoadingTimer = setInterval(() => {
+    _reportMsgIdx = (_reportMsgIdx + 1) % REPORT_LOADING_MSGS.length;
+    statusEl.textContent = REPORT_LOADING_MSGS[_reportMsgIdx];
+  }, 5000);
+}
+
+function stopReportLoading() {
+  if (_reportLoadingTimer) {
+    clearInterval(_reportLoadingTimer);
+    _reportLoadingTimer = null;
+  }
+  statusEl.textContent = "";
+}
+
+/* ===========================
    14) 6回目終了後：無料レポ → 購入ボタン表示 → 入力ロック
    =========================== */
 async function endFreeChatAndShowPaywall() {
@@ -1776,14 +1813,16 @@ hideProgress();
   lockChatInput("無料レポートは完了じゃ。購入ボタンから進めてくれ。");
 
   setBusy(true);
-  statusEl.textContent = "仙人がまとめを用意しておる…";
+  // ローテーションメッセージ開始（summaryJson生成中は5秒ごとに切り替わる）
+  startReportLoading();
 
   try {
     scheduleTypingBubble(2000);
     // 1) summaryJson（設計図）作成（有料と同じ）
     const summaryJson = await fetchPaidSummaryJson();
-     hideTypingBubble();
-
+    hideTypingBubble();
+    // summaryJson取得後：ローテーション停止してストリーミング案内に切り替え
+    stopReportLoading();
 
     // 2) 無料レポート（切り取り）をストリーム表示
     statusEl.textContent = "仙人が無料レポートを書いておる…";
@@ -1809,6 +1848,7 @@ choicesWrap.innerHTML = "";
     addAssistant("すまぬのう、無料レポートの生成で詰まってしもうた。ページを一度更新して、もう一度試してくれんかのう。");
     addAssistant("それでもうまくいかない場合は、少し時間をおいてから試してみてくれ。");
   } finally {
+    stopReportLoading(); // タイマーが残っていればここでクリア
     statusEl.textContent = "";
     setBusy(false);
   }
@@ -2035,7 +2075,7 @@ async function sendFree(){
 
   try{
     scheduleTypingBubble(2000);            // ★追加
-    const reply = await withRetry(()=>callOpenAI(msgs, 900));
+    const reply = await withRetry(()=>callOpenAI(msgs, 1800));
     hideTypingBubble();                    // ★追加（返答が来た瞬間に消す）
     addAssistant(reply);
     // ★この時点で「無料相談 1回消化」
