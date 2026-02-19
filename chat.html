@@ -1789,8 +1789,11 @@ function startReportLoading() {
   _reportMsgIdx = 0;
   statusEl.textContent = REPORT_LOADING_MSGS[0];
   _reportLoadingTimer = setInterval(() => {
-    _reportMsgIdx = (_reportMsgIdx + 1) % REPORT_LOADING_MSGS.length;
-    statusEl.textContent = REPORT_LOADING_MSGS[_reportMsgIdx];
+    // 最後のメッセージに達したらループせずそのまま維持
+    if (_reportMsgIdx < REPORT_LOADING_MSGS.length - 1) {
+      _reportMsgIdx++;
+      statusEl.textContent = REPORT_LOADING_MSGS[_reportMsgIdx];
+    }
   }, 5000);
 }
 
@@ -1825,11 +1828,8 @@ hideProgress();
     // 1) summaryJson（設計図）作成（有料と同じ）
     const summaryJson = await fetchPaidSummaryJson();
     hideTypingBubble();
-    // summaryJson取得後：ローテーション停止してストリーミング案内に切り替え
-    stopReportLoading();
 
-    // 2) 無料レポート（切り取り）をストリーム表示
-    statusEl.textContent = "仙人が無料レポートを書いておる…";
+    // 2) 無料レポート（切り取り）をストリーム表示（ローテーションはそのまま継続）
     await streamTextPlain(
       "/api/free-report-stream",
       summaryJson,
