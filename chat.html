@@ -1169,7 +1169,6 @@ function showAsk(){
 /* ===========================
    7) OpenAI 呼び出し（/api/chat 経由）※429リトライ対応版
    =========================== */
-// maxTokens: 通常ターン=900 / 深掘り=1500 / quickAcknowledge=450
 async function callOpenAI(messages, maxTokens = 900) {
   const TIMEOUT_MS = 120_000;
   const MAX_RETRIES = 2;
@@ -1482,29 +1481,6 @@ const SYS_PHASE_D = String.raw`
 ・番号付きの内心セリフや「どれが近いか」などの問いを出してはならない。
 `;
 
-// 深掘りリクエスト専用システムプロンプト（max_tokens=1500で呼ぶ）
-const DEEPDIVE_SYS_TEMPLATE = String.raw`
-あなたは「恋脳レポート」の恋愛仙人じゃ。
-一人称は常に「わし」。ユーザは「お主」かニックネーム（{{name}}）で呼ぶ。
-語尾に「〜じゃ／〜じゃな／〜ぞ／〜のう／〜かもしれん」を混ぜる。
-敬語・ビジネス口調は禁止。中学生でも分かる日本語を使うこと。
-
-お主が「もっと詳しく聞かせてくれ」と言ってきた。
-直前のわしの返答に含まれていた内容を、もう一段深く掘り下げて語るのじゃ。
-
-やること：
-・お主の気持ちの言語化を5〜7文で丁寧に展開する。
-  （どんな場面でどう感じているか、心の中で何が起きているかを具体的に）
-  LINEの既読、デートの約束、寝る前のスマホ確認など日常シーンに結びつけてよい。
-・二人のタイプの掛け算から見える構図を3〜4文で語る。
-  （なぜこのしんどさが生まれているか、の"パターン"として）
-・全体500〜700字程度。ひとつながりの語りとして書く。
-
-やらないこと：
-・新しい質問や番号付き選択肢を出してはならん（次の問いは直前の返答にある）。
-・会話履歴にない事実を作ってはならん（捏造禁止）。
-・「セクション」「フェーズ」等のメタな言葉は禁止。
-`.trim();
 
 /* ===========================
    9) systemビルダー & メタ生成
@@ -1620,8 +1596,6 @@ freeTurnsDone += 1;
 updateProgress();
     history.push({role:"user",content:msgs[2].content});
     history.push({role:"assistant",content:reply});
-    // 初回返答後も深掘りボタンを表示
-    showDeepDiveButton();
   }catch(e){
     console.warn("first turn error:", e);
     addAssistant("今は少し調子が悪いようじゃ…時間をおいて試してくれんかのう。");
@@ -1973,65 +1947,6 @@ function showPaywallButtons(token) {
   choicesWrap.appendChild(laterBtn);
 }
 
-/* ===========================
-   14.5) 深掘りボタン（短い返答の後に「もっと詳しく」を任意で出す）
-   =========================== */
-let deepDiveActive = false; // 深掘りボタンが表示中かどうか
-
-function showDeepDiveButton() {
-  deepDiveActive = true;
-  choicesWrap.classList.remove("is-hidden");
-  choicesWrap.innerHTML = "";
-
-  const btn = document.createElement("button");
-  btn.className = "choice secondary";
-  btn.textContent = "もっと詳しく聞かせてくれ";
-  btn.style.cssText = "margin-top:2px; font-size:13px;";
-
-  btn.addEventListener("click", async () => {
-    if (isBusy) return;
-    deepDiveActive = false;
-    choicesWrap.innerHTML = "";
-    choicesWrap.classList.add("is-hidden");
-    await callDeepDive();
-  });
-
-  choicesWrap.appendChild(btn);
-}
-
-async function callDeepDive() {
-  setBusy(true);
-  statusEl.textContent = "仙人がもう少し掘り下げておる…";
-
-  const me = profile.gender === "男性" ? "俺" : "私";
-  const name = profile.name || "お主";
-  const deepDiveSys = DEEPDIVE_SYS_TEMPLATE
-    .replaceAll("{{name}}", name)
-    .replaceAll("{{me}}", me);
-
-  // history には直前のユーザ発言 + 仙人返答が既に積まれている
-  const msgs = [
-    { role: "system", content: deepDiveSys },
-    ...history,
-    { role: "user", content: "もっと詳しく聞かせてくれ。" }
-  ];
-
-  try {
-    scheduleTypingBubble(2000);
-    const reply = await withRetry(() => callOpenAI(msgs, 1500));
-    hideTypingBubble();
-    addAssistant(reply);
-    track('deepdive_shown', { turn: freeTurnsDone });
-    // 深掘り応答は history に積まない（本流の会話ではないため）
-  } catch (e) {
-    hideTypingBubble();
-    console.warn("deep dive error:", e);
-    addAssistant("すまぬのう、うまく掘り下げられなかったようじゃ。さっきの返答のまま進んでくれんかのう。");
-  } finally {
-    statusEl.textContent = "";
-    setBusy(false);
-  }
-}
 
 /* ===========================
    15) 以降のやり取り（通常チャット）
@@ -2049,13 +1964,6 @@ async function sendFree(){
     await onAnswer(text);
     freeInput.value = "";
     return;
-  }
-
-  // チャットフェーズ：新しいメッセージ送信時に深掘りボタンをクリア
-  if (deepDiveActive) {
-    deepDiveActive = false;
-    choicesWrap.innerHTML = "";
-    choicesWrap.classList.add("is-hidden");
   }
 
   addUser(text);
@@ -2094,9 +2002,6 @@ updateProgress();
       await endFreeChatAndShowPaywall();
       return;
     }
-
-    // 最終ターン以外は「深掘り」ボタンを表示
-    showDeepDiveButton();
 
   } catch(e){
     console.warn("chat error:", e);
