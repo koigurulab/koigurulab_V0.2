@@ -512,6 +512,52 @@
     }
     .chat-send-btn:hover { background: var(--accent-dark); }
     .chat-send-btn[disabled] { opacity: 0.6; cursor: default; }
+
+    /* ── セッション復元バー ── */
+    .restore-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 10px;
+      margin: 4px 0;
+      font-size: 12px;
+      color: #92400e;
+    }
+    .restore-bar button {
+      background: none;
+      border: none;
+      color: #b45309;
+      font-size: 12px;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    /* ── LINE 友達追加ボタン ── */
+    .line-follow-btn {
+      display: block;
+      width: 100%;
+      padding: 13px 16px;
+      margin: 10px 0 2px;
+      border-radius: 12px;
+      background: #06C755;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+    .line-follow-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin: 4px 0 10px;
+    }
   </style>
   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-PMRW6LK7YG"></script>
@@ -612,6 +658,7 @@ function addAssistant(text){
   row.appendChild(b);
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
+  if (!isRestoring) displayLog.push({ role: "assistant", text: String(text ?? "") });
 }
 
 function addAssistantStreamBubble(initialText=""){
@@ -635,6 +682,7 @@ function addUser(text){
   row.appendChild(b);
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
+  if (!isRestoring) displayLog.push({ role: "user", text: String(text) });
 }
   /* ===========================
    1.2) typing吹き出し（2秒超えたら表示 / ログに残さない）
@@ -775,6 +823,10 @@ let idx = 0;
 // LLM用の history
 const history = [];
 
+// 画面表示ログ（復元時にチャット履歴を再描画するために使う）
+const displayLog = [];
+let isRestoring = false;
+
 // 会話の状態（タイプ要約など）
 const dialogState = {
   selfSummary: "",
@@ -876,6 +928,7 @@ if (idx >= steps.length) {
 }
 
 if (idx < steps.length) {
+  saveDraft("intake");
   setBusy(false);
   showAsk();
 } else {
@@ -886,6 +939,14 @@ if (idx < steps.length) {
 
   statusEl.textContent = "仙人が考え中じゃ…";
   track('intake_complete', { step_count: steps.length });
+
+  // ★ Google Sheets ログ送信（エラーでも続行）
+  fetch("/api/log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event: "intake_complete", profile })
+  }).catch(e => console.warn("log failed:", e));
+
   await startFirstTurn();
   statusEl.textContent = "";
   setBusy(false);
@@ -1596,6 +1657,7 @@ freeTurnsDone += 1;
 updateProgress();
     history.push({role:"user",content:msgs[2].content});
     history.push({role:"assistant",content:reply});
+    saveDraft("chat");
   }catch(e){
     console.warn("first turn error:", e);
     addAssistant("今は少し調子が悪いようじゃ…時間をおいて試してくれんかのう。");
@@ -1689,6 +1751,117 @@ function loadSessionByToken(token) {
     return { summaryJson, profile: profile_, history: history_ };
   } catch {
     return null;
+  }
+}
+
+/* ===========================
+   13.5) セッションドラフト保存/復元
+   ─ localStorage key: koi_draft（常に上書き・単一）
+   ─ TTL: 24時間
+   =========================== */
+const DRAFT_KEY = "koi_draft";
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+
+function saveDraft(phase, paywallToken) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      phase,
+      idx,
+      profile: { ...profile },
+      history: history.map(m => ({ role: m.role, content: m.content })),
+      displayLog: displayLog.map(m => ({ role: m.role, text: m.text })),
+      freeTurnsDone,
+      dialogState: { ...dialogState },
+      paywallToken: paywallToken || null,
+      savedAt: Date.now()
+    }));
+  } catch(e) { console.warn("saveDraft failed:", e); }
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || !d.savedAt) return null;
+    if (Date.now() - d.savedAt > DRAFT_TTL_MS) {
+      localStorage.removeItem(DRAFT_KEY);
+      return null;
+    }
+    return d;
+  } catch { return null; }
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+function restoreFromDraft(draft) {
+  // ── 購入済みのペイウォールドラフトは無視 ──
+  if (draft.phase === "paywall" && draft.paywallToken) {
+    const doneKey = `koi_paid_done_${draft.paywallToken}`;
+    if (localStorage.getItem(doneKey) === "1") {
+      clearDraft();
+      showAsk();
+      return;
+    }
+  }
+
+  // ── 状態を復元 ──
+  Object.assign(profile, draft.profile || {});
+  Object.assign(dialogState, draft.dialogState || {});
+  (draft.history || []).forEach(m => history.push({ role: m.role, content: m.content }));
+  freeTurnsDone = draft.freeTurnsDone || 0;
+  idx = draft.idx || 0;
+
+  // ── 復元バー表示（「最初からやり直す」ボタン付き）──
+  const bar = document.createElement("div");
+  bar.className = "restore-bar";
+  bar.innerHTML = `<span>⚡ 前回の続きから再開するぞ</span>`;
+  const freshBtn = document.createElement("button");
+  freshBtn.textContent = "最初からやり直す";
+  freshBtn.addEventListener("click", () => {
+    clearDraft();
+    location.reload();
+  });
+  bar.appendChild(freshBtn);
+  chat.appendChild(bar);
+
+  if (draft.phase === "intake") {
+    // ── インテーク途中：現在のステップから再開 ──
+    addAssistant(`…おっと、途中まで聞いておったのう。${profile.name ? profile.name + "、続き" : "続き"}から始めるぞ。`);
+    showAsk();
+
+  } else if (draft.phase === "chat") {
+    // ── チャット途中：会話を再描画してから入力を再開 ──
+    isRestoring = true;
+    (draft.displayLog || []).forEach(m => {
+      if (m.role === "user") addUser(m.text);
+      else addAssistant(m.text);
+    });
+    isRestoring = false;
+
+    choicesWrap.innerHTML = "";
+    choicesWrap.classList.add("is-hidden");
+    stepHint.textContent = "";
+    showProgress();
+    updateProgress();
+    setBusy(false);
+
+  } else if (draft.phase === "paywall") {
+    // ── ペイウォール：会話再描画→購入ボタン再表示 ──
+    isRestoring = true;
+    (draft.displayLog || []).forEach(m => {
+      if (m.role === "user") addUser(m.text);
+      else addAssistant(m.text);
+    });
+    isRestoring = false;
+
+    showProgress();
+    updateProgress();
+    lockChatInput("相談は完了したぞ");
+    choicesWrap.classList.remove("is-hidden");
+    showPaywallButtons(draft.paywallToken);
   }
 }
 
@@ -1814,6 +1987,7 @@ hideProgress();
     // 3) token発行 → 保存（決済後に有料生成に使う）
     const token = makeToken();
     saveSessionByToken(token, { summaryJson, profile, history });
+    saveDraft("paywall", token);  // ← LINEリンクから戻ってきても復元できる
     choicesWrap.classList.remove("is-hidden");
 choicesWrap.innerHTML = "";
 
@@ -1936,6 +2110,21 @@ function showPaywallButtons(token) {
   note.textContent = "全プラン買い切り。追加料金なし。カフェ1杯分から始められるぞい。";
   choicesWrap.appendChild(note);
 
+  // ── LINE 友達追加リンク ──
+  const lineLink = document.createElement("a");
+  // ★ 下の href を実際のLINE公式アカウントURLに変更してください
+  lineLink.href = "https://line.me/R/ti/p/@255gxttc";
+  lineLink.target = "_blank";
+  lineLink.rel = "noopener noreferrer";
+  lineLink.className = "line-follow-btn";
+  lineLink.textContent = "📲 LINE公式をフォローする";
+  choicesWrap.appendChild(lineLink);
+
+  const lineNote = document.createElement("div");
+  lineNote.className = "line-follow-note";
+  lineNote.textContent = "無料で相談し放題のサブスクプランを先行案内するぞ";
+  choicesWrap.appendChild(lineNote);
+
   // 「購入しない」ボタン
   const laterBtn = document.createElement("button");
   laterBtn.className = "tier-later";
@@ -1996,6 +2185,7 @@ updateProgress();
 
     history.push({role:"user",content:msgs[msgs.length-1].content});
     history.push({role:"assistant",content:reply});
+    saveDraft("chat");
 
     // ★8回目の返信が出た後：無料レポ → 課金導線 → 入力ロック
     if (nextTurn === MAX_TURNS) {
@@ -2031,7 +2221,12 @@ freeInput.addEventListener("keydown", (e) => {
 });
 track('chat_view', { page: 'chat.html' });
 (function boot(){
-  showAsk();
+  const draft = loadDraft();
+  if (draft && draft.phase && draft.profile && Object.keys(draft.profile).length > 0) {
+    restoreFromDraft(draft);
+  } else {
+    showAsk();
+  }
 })();
 </script>
 </body>
