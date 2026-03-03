@@ -960,6 +960,27 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
       // 成功したらretry回数をリセット（運用が楽）
       resetRetries(token);
 
+      // ★ 購入ログ送信（1セッション1回だけ）
+      const purchaseLogKey = "koi_purchase_log_" + sessionId;
+      if (!localStorage.getItem(purchaseLogKey)) {
+        localStorage.setItem(purchaseLogKey, "1");
+        const tierPriceMap = { "480": 480, "980": 980, "1980": 1980 };
+        const tierNameMap  = { "480": "診断レポート", "980": "攻略レポート", "1980": "個別戦略書" };
+        const sess = safeJsonParse(localStorage.getItem(`koi_session_${token}`));
+        fetch("/api/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event:     "purchase",
+            profile:   sess?.profile || {},
+            tier:      tier,
+            price:     tierPriceMap[tier] || 480,
+            plan_name: tierNameMap[tier]  || "不明",
+            token:     token ? String(token).slice(0, 8) : ""
+          })
+        }).catch(e => console.warn("purchase log failed:", e));
+      }
+
       // ✅ 成功時も actions を出す（保存導線）
       actionsEl.style.display = "flex";
 

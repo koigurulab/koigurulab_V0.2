@@ -1911,6 +1911,7 @@ async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
     bubble.textContent += decoder.decode(value, { stream: true });
     chat.scrollTop = chat.scrollHeight;
   }
+  return bubble.textContent; // ログ送信用に全文を返す
 }
 
 /* ===========================
@@ -1977,12 +1978,19 @@ hideProgress();
     hideTypingBubble();
 
     // 2) 無料レポート（切り取り）をストリーム表示（ローテーションはそのまま継続）
-    await streamTextPlain(
+    const freeReportText = await streamTextPlain(
       "/api/free-report-stream",
       summaryJson,
       "── ここからは『無料レポート（切り取り）』じゃ。\n\n"
     );
     track('free_report_shown', { turn: MAX_TURNS });
+
+    // ★ 無料レポートの内容をログ送信
+    fetch("/api/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "free_report_shown", profile, report: freeReportText || "" })
+    }).catch(e => console.warn("free report log failed:", e));
 
     // 3) token発行 → 保存（決済後に有料生成に使う）
     const token = makeToken();
