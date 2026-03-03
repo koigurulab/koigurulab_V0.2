@@ -100,6 +100,22 @@
       box-shadow: 0 4px 14px rgba(249,115,115,0.35);
     }
     .btn-header:hover { background: var(--accent-dark); transform: translateY(-1px); }
+    .btn-line-header {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 14px;
+      border-radius: var(--radius-pill);
+      background: #06C755;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .btn-line-header:hover { background: #05a847; transform: translateY(-1px); }
 
     /* ══════════════════════════════
        HERO
@@ -663,6 +679,13 @@
     <a href="#" class="logo">
       <div class="logo-icon">恋</div>
       <span class="logo-name">恋ぐるラボ</span>
+    </a>
+    <a href="https://line.me/R/ti/p/@255gxttc"
+       class="btn-line-header"
+       target="_blank"
+       rel="noopener noreferrer"
+       onclick="track('click_line_follow',{location:'header'})">
+      📲 LINE登録
     </a>
     <a href="chat.html" class="btn-header"
        onclick="track('click_start_free',{location:'header'})">
