@@ -1535,7 +1535,7 @@ const SYS_PHASE_D = String.raw`
   今後選べる方向性の例をいくつか「説明」として示す。
   ・振り返りのあとに必ず1〜2文で、
   「ここまでの話をもとに“無料レポート（切り取り）”を今から出す」ことを宣言し、
-  「数十秒ほど、少し待っておれ」などの待機案内を入れる（質問は禁止）。
+  「1〜2分ほど待っておれ」などの待機案内を入れる（質問は禁止）。
 ・最後の1〜3文は、
   「今日はここまでにしておこう」「また話したくなったら来い」
   などの締めの言葉だけにする。
@@ -1932,23 +1932,33 @@ const REPORT_LOADING_MSGS = [
 ];
 let _reportLoadingTimer = null;
 let _reportMsgIdx = 0;
+let _reportLoadingBubble = null;
 
 function startReportLoading() {
   _reportMsgIdx = 0;
-  statusEl.textContent = REPORT_LOADING_MSGS[0];
+  _reportLoadingBubble = addAssistantStreamBubble(REPORT_LOADING_MSGS[0]);
+  chat.scrollTop = chat.scrollHeight;
   _reportLoadingTimer = setInterval(() => {
     // 最後のメッセージに達したらループせずそのまま維持
     if (_reportMsgIdx < REPORT_LOADING_MSGS.length - 1) {
       _reportMsgIdx++;
-      statusEl.textContent = REPORT_LOADING_MSGS[_reportMsgIdx];
+      if (_reportLoadingBubble) {
+        _reportLoadingBubble.textContent = REPORT_LOADING_MSGS[_reportMsgIdx];
+        chat.scrollTop = chat.scrollHeight;
+      }
     }
-  }, 5000);
+  }, 10000);
 }
 
 function stopReportLoading() {
   if (_reportLoadingTimer) {
     clearInterval(_reportLoadingTimer);
     _reportLoadingTimer = null;
+  }
+  // ローディングバブルを削除（この直後にレポート本文が始まる）
+  if (_reportLoadingBubble) {
+    _reportLoadingBubble.closest('.row')?.remove();
+    _reportLoadingBubble = null;
   }
   statusEl.textContent = "";
 }
@@ -1972,12 +1982,11 @@ hideProgress();
   startReportLoading();
 
   try {
-    scheduleTypingBubble(2000);
     // 1) summaryJson（設計図）作成（有料と同じ）
     const summaryJson = await fetchPaidSummaryJson();
-    hideTypingBubble();
 
-    // 2) 無料レポート（切り取り）をストリーム表示（ローテーションはそのまま継続）
+    // 2) ローディングバブルを消してからレポートストリーム開始
+    stopReportLoading();
     const freeReportText = await streamTextPlain(
       "/api/free-report-stream",
       summaryJson,
