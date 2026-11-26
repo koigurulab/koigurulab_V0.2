@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /paid-success.html
+Disallow: /paid-cancel.html
+Disallow: /dev-report.html
+
+Sitemap: https://koigurulab-v0-2.vercel.app/sitemap.xml
