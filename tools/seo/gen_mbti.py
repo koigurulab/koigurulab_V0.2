@@ -142,12 +142,12 @@ for t in ORDER:
     out.append(f"<h2>{t}の恋を進めるコツ</h2><ul class=\"list\">")
     out += [f"<li>{e(s)}</li>" for s in d["tips"]]
     out.append("</ul>")
-    out.append(cta(loc+"_mid", f"自分と相手のタイプがわかれば、二人の“すれ違いの構図”が見えてくるぞ。{t}のあの人との恋、わしに話してみんか？"))
+    out.append(cta(loc+"_mid", f"自分と相手のタイプがわかれば、二人のすれ違いの構図が見えてくるぞ。{t}のあの人との恋、わしに話してみんか？"))
     out.append(f"<h2>{t}と相性の傾向</h2><div class=\"match\"><div><h3>噛み合いやすいタイプ</h3>")
     out += [f'<p><a href="/mbti/{x.lower()}.html"><b>{x}</b></a>：{e(r)}</p>' for x,r in d["good"]]
     out.append("</div><div><h3>すれ違いやすいタイプ</h3>")
     out += [f'<p><a href="/mbti/{x.lower()}.html"><b>{x}</b></a>：{e(r)}</p>' for x,r in d["bad"]]
-    out.append("</div></div><p>相性は“傾向”にすぎん。すれ違いやすい組み合わせでも、違いを知っていれば、むしろお互いを補い合える関係になれるんじゃ。</p>")
+    out.append("</div></div><p>相性は傾向にすぎん。すれ違いやすい組み合わせでも、違いを知っていれば、むしろお互いを補い合える関係になれるんじゃ。</p>")
     out.append("<h2>ほかのタイプの恋愛も見る</h2>")
     out.append(grid(t))
     out.append(foot())
@@ -167,7 +167,7 @@ out.append(grid())
 out.append("<h2>タイプ別の恋のキャッチフレーズ</h2>")
 for t in ORDER:
     out.append(f'<a class="card" href="/mbti/{t.lower()}.html"><b>{t}</b>　{e(TYPES[t]["catch"])}</a>')
-out.append(cta("mbti_hub_bottom", "タイプの傾向がわかったら、次はお主と相手の“二人の構図”じゃ。わしが無料で言語化してやろう。"))
+out.append(cta("mbti_hub_bottom", "タイプの傾向がわかったら、次はお主と相手の二人の構図じゃ。わしが無料で言語化してやろう。"))
 out.append(foot())
 open(f"{OUT}/index.html","w",encoding="utf-8").write("\n".join(out))
 print("generated", len(ORDER)+1, "pages")
