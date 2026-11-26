@@ -3,6 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <title>恋ぐるラボ｜恋愛仙人チャット</title>
+  <script>
+    /* TikTokのプロフリンク（utm_source=tiktok）からの訪問は、10秒診断へ振り分ける */
+    (function () {
+      try {
+        var q = new URLSearchParams(location.search);
+        if (q.get('utm_source') === 'tiktok' && q.get('stay') !== '1') {
+          location.replace('/start.html' + location.search);
+        }
+      } catch (e) {}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="MBTI×恋愛16タイプで、あなたの恋のぐるぐるを言語化。恋愛仙人との無料チャット→恋ぐるレポート。ログイン不要・3分で開始。" />
   <link rel="canonical" href="https://koigurulab-v0-2.vercel.app/" />
