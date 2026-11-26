@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>恋愛仙人の10秒相性診断｜恋ぐるラボ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="お主とあの人のMBTIを選ぶだけ。恋愛仙人が二人の恋のクセを10秒で見抜くぞ。無料・登録不要。" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#f97373" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/assets/favicon-48.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="恋ぐるラボ" />
+  <meta property="og:title" content="恋愛仙人の10秒相性診断" />
+  <meta property="og:description" content="お主とあの人のMBTIを選ぶだけ。二人の恋のクセを恋愛仙人が見抜くぞ。" />
+  <meta property="og:image" content="https://koigurulab-v0-2.vercel.app/assets/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --accent: #f97373;
+      --accent-dark: #e45454;
+      --ink: #111827;
+      --muted: #6b7280;
+      --border: #ffe4e6;
+      --bg-soft: #fff7f8;
+      --bg-white: #ffffff;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-pill: 999px;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Yu Gothic UI", "Yu Gothic", "Meiryo", sans-serif;
+      font-size: 15px; line-height: 1.75; color: var(--ink);
+      background: linear-gradient(170deg, #fff0f2 0%, var(--bg-soft) 50%, var(--bg-white) 100%);
+      min-height: 100dvh;
+    }
+    .wrap { max-width: 480px; margin: 0 auto; padding: 20px 18px 40px; }
+    .brand { font-size: 13px; font-weight: 800; color: var(--muted); letter-spacing: .04em; }
+    .sage { display: flex; gap: 12px; align-items: flex-end; margin: 16px 0 18px; }
+    .sage img { width: 72px; height: auto; flex-shrink: 0; }
+    .bubble {
+      background: var(--bg-white); border: 1.5px solid rgba(249,115,115,.28); border-radius: 16px;
+      padding: 12px 14px; font-size: 14px; font-weight: 700; line-height: 1.6;
+      box-shadow: 0 8px 24px rgba(15,23,42,.06);
+    }
+    .bubble em { font-style: normal; color: var(--accent-dark); }
+    h2 { font-size: 15px; font-weight: 800; margin: 18px 0 8px; }
+    h2 small { font-weight: 600; color: var(--muted); font-size: 12px; margin-left: 6px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .grid button, .unknown {
+      font: inherit; font-size: 14px; font-weight: 800; letter-spacing: .03em;
+      padding: 11px 0; border-radius: 12px; border: 1.5px solid var(--border);
+      background: var(--bg-white); color: var(--ink); cursor: pointer;
+    }
+    .unknown { grid-column: span 4; font-size: 13px; font-weight: 700; color: var(--muted); }
+    .grid button.on, .unknown.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .go {
+      display: block; width: 100%; margin-top: 22px; padding: 16px; border: none; border-radius: var(--radius-pill);
+      background: linear-gradient(135deg, var(--accent), #fb7185); color: #fff; font: inherit; font-size: 16px; font-weight: 800;
+      box-shadow: 0 12px 28px rgba(249,115,115,.4); cursor: pointer;
+    }
+    .go:disabled { opacity: .45; box-shadow: none; cursor: default; }
+    .note { font-size: 11.5px; color: var(--muted); text-align: center; margin-top: 8px; }
+    .result {
+      display: none; margin-top: 22px; background: var(--bg-white); border: 1.5px solid rgba(249,115,115,.28);
+      border-radius: var(--radius-lg); padding: 18px 16px; box-shadow: 0 12px 30px rgba(15,23,42,.08);
+    }
+    .result.show { display: block; animation: rise .35s ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .result-head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .result-head img { width: 40px; height: auto; }
+    .pair { font-size: 13px; font-weight: 800; color: var(--accent-dark); }
+    .result p { margin: 8px 0; font-size: 14.5px; }
+    .teaser { background: var(--bg-soft); border-radius: var(--radius-md); padding: 12px 14px; font-weight: 700; }
+    .sub { font-size: 12px; color: var(--muted); text-align: center; margin-top: 8px; }
+    .guide {
+      display: none; position: fixed; inset: 0; background: rgba(17,24,39,.92); z-index: 50;
+      color: #fff; padding: 24px 22px; text-align: center;
+    }
+    .guide.show { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .guide-arrow { position: absolute; top: 10px; right: 18px; font-size: 40px; line-height: 1; }
+    .guide h3 { font-size: 18px; margin-bottom: 10px; }
+    .guide p { font-size: 14px; line-height: 1.8; margin-bottom: 18px; }
+    .guide button {
+      font: inherit; font-weight: 800; border-radius: var(--radius-pill); padding: 13px 22px; margin: 6px; border: none; cursor: pointer;
+    }
+    .copy { background: #fff; color: var(--ink); }
+    .stay { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.6) !important; }
+    .disclaimer { font-size: 11px; color: #9ca3af; text-align: center; margin-top: 26px; }
+  </style>
+
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PMRW6LK7YG"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ window.dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-PMRW6LK7YG');
+    function track(name, params) { try { gtag('event', name, params || {}); } catch (e) {} }
+  </script>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">恋ぐるラボ｜恋愛仙人</div>
+
+  <div class="sage">
+    <img src="/assets/senin_320.webp" alt="恋愛仙人" width="72" height="81" />
+    <div class="bubble">お主とあの人のMBTIを選ぶだけで、<em>二人の恋のクセ</em>をわしが当ててやろう。10秒で終わるぞ。</div>
+  </div>
+
+  <h2>お主のMBTI</h2>
+  <div class="grid" id="self"></div>
+
+  <h2>あの人のMBTI<small>わからなければ「わからない」でよいぞ</small></h2>
+  <div class="grid" id="target"></div>
+
+  <button class="go" id="go" disabled>仙人に見てもらう</button>
+  <p class="note">無料・登録なし・名前もいらん</p>
+
+  <section class="result" id="result" aria-live="polite">
+    <div class="result-head">
+      <img src="/assets/senin_320.webp" alt="" width="40" height="45" />
+      <div class="pair" id="pair"></div>
+    </div>
+    <div id="reading"></div>
+    <p class="teaser">じゃが、二人がこの先どうなるか、お主がどう動けばよいかは、今の状況を聞かんと言えん。少し話してくれれば、お主専用の恋の癖レポートを無料で書いてやろう。</p>
+    <button class="go" id="continue">続きを仙人に相談する（無料）</button>
+    <p class="sub" id="continue-note">6回のチャットで、お主専用のレポートを書くぞ</p>
+  </section>
+
+  <p class="disclaimer">※ 楽しみながら気持ちを整理するための読み物です。AIによる対話サービスで、専門家の診断を代替するものではありません。</p>
+</div>
+
+<div class="guide" id="guide" role="dialog" aria-modal="true">
+  <div class="guide-arrow">↗</div>
+  <h3>いつものブラウザで開いてくだされ</h3>
+  <p>アプリの中のブラウザだと、話した内容が消えやすいんじゃ。<br>画面の「…」から<br><b>「ブラウザで開く」</b>を選ぶのじゃ。</p>
+  <div>
+    <button class="copy" id="copy">リンクをコピー</button>
+    <button class="stay" id="stay">このまま続ける</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var TYPES = ['INFP','ENFP','INFJ','ENFJ','INTJ','ENTJ','INTP','ENTP','ISFP','ESFP','ISTP','ESTP','ISFJ','ESFJ','ISTJ','ESTJ'];
+
+  // 自分のタイプの読み（バーナム型。API不使用）
+  var SELF = {
+    INFP: 'お主は、人に合わせるのが上手じゃが、心の奥には誰にも譲れん理想がある。相手の何気ない一言を、夜にひとりで何度も思い返してしまうタイプじゃな。',
+    ENFP: 'お主は、明るく見られがちじゃが、実は誰よりも相手の反応を気にしておる。盛り上がった後の静けさに、ふと不安になる夜があるじゃろう。',
+    INFJ: 'お主は、人の気持ちを先に読みすぎて、自分の本音を後回しにしがちじゃ。わかってほしいのに、言葉にする前に飲み込んでしまうことが多いのう。',
+    ENFJ: 'お主は、好きな人のためならどこまでも頑張れる。じゃが、尽くしたぶんだけ、相手の温度が気になってしまうところがあるじゃろう。',
+    INTJ: 'お主は、冷静に見えて、一度決めた相手にはとても一途じゃ。ただ、気持ちを言葉にするのが少し苦手で、誤解されやすいのう。',
+    ENTJ: 'お主は、恋でも主導権を握りたいタイプじゃが、本当は弱いところを見せられる相手を探しておる。強がりの裏に、さみしさを隠しておらんか。',
+    INTP: 'お主は、気持ちを頭で整理してから動くタイプじゃ。考えているうちにタイミングを逃して、後からあの時こうすればと思うことがあるじゃろう。',
+    ENTP: 'お主は、会話で恋を始めるのが得意じゃが、本気になるほど照れて冗談でごまかしてしまう。本音をまっすぐ言えた時、恋は一気に動くんじゃ。',
+    ISFP: 'お主は、やさしくて空気を読むのが上手じゃ。じゃが、そのぶん我慢をため込みやすく、気づいた時には心が疲れていることがあるのう。',
+    ESFP: 'お主は、一緒にいる時間を全力で楽しめる人じゃ。じゃが、会えない時間が続くと、急に不安が大きくなるところがあるじゃろう。',
+    ISTP: 'お主は、自分のペースを大事にするタイプじゃ。好きでも、それを態度で見せるのが少し不器用で、相手を不安にさせてしまうことがあるのう。',
+    ESTP: 'お主は、思ったらすぐ動ける行動派じゃ。じゃが、勢いで進んだ後に、相手の本当の気持ちがわからなくなる瞬間があるじゃろう。',
+    ISFJ: 'お主は、相手のことをよく見て、言われる前に動ける人じゃ。じゃが、自分の希望は後回しにして、嫌われるのが怖くて言えんことが多いのう。',
+    ESFJ: 'お主は、好きな人をとことん大切にできる人じゃ。そのぶん、相手の返信や態度の小さな変化に、心が揺れやすいところがあるじゃろう。',
+    ISTJ: 'お主は、約束を守り、誠実に恋をする人じゃ。じゃが、気持ちを言葉にしなくても伝わると思って、相手を不安にさせることがあるのう。',
+    ESTJ: 'お主は、関係をはっきりさせたいまっすぐな人じゃ。じゃが、正しさを大事にするあまり、相手の気持ちが追いついておらん時があるじゃろう。',
+    UNKNOWN: 'お主は、表では平気な顔をしておっても、心の中ではいろいろ考えてしまうタイプじゃな。'
+  };
+
+  // 相手のタイプの読み
+  var TARGET = {
+    INFP: 'あの人は、気持ちを心の中で大事に育てるタイプじゃ。返信が遅くても、どうでもいいとは限らん。言葉を選んでおるだけのことも多いぞ。',
+    ENFP: 'あの人は、楽しいことに素直で、気持ちが態度に出やすいタイプじゃ。ただ、刺激がないと気持ちがよそに向きやすいところもあるのう。',
+    INFJ: 'あの人は、人をよく見ておるが、自分の本音はなかなか見せんタイプじゃ。心を開くまでに時間がかかるが、開いたら深いぞ。',
+    ENFJ: 'あの人は、相手を喜ばせるのが好きなタイプじゃ。じゃが、誰にでも優しいぶん、お主だけが特別なのか見えにくいことがあるのう。',
+    INTJ: 'あの人は、感情を表に出さんが、決めた相手にはまっすぐなタイプじゃ。そっけなく見える時ほど、頭の中ではお主のことを考えておることもある。',
+    ENTJ: 'あの人は、自分のペースで関係を進めたいタイプじゃ。押しが強く見えて、実は認めてくれる相手に弱いんじゃよ。',
+    INTP: 'あの人は、気持ちに気づくのが少し遅いタイプじゃ。連絡が途切れても、興味がないとは限らん。考えごとに夢中なだけかもしれん。',
+    ENTP: 'あの人は、会話のテンポで人を好きになるタイプじゃ。からかってくるのは、好意の裏返しのことも多いぞ。',
+    ISFP: 'あの人は、言葉より雰囲気で気持ちを伝えるタイプじゃ。嫌なことがあっても言わずに、静かに距離を取ることがあるのう。',
+    ESFP: 'あの人は、その場の楽しさを大事にするタイプじゃ。会っている時は全力じゃが、会えない時の連絡は気分次第なこともある。',
+    ISTP: 'あの人は、束縛を嫌い、自分の時間を大事にするタイプじゃ。言葉は少なくても、困った時に動いてくれるなら、それが答えじゃよ。',
+    ESTP: 'あの人は、思い立ったらすぐ動くタイプじゃ。押す時と引く時の差が大きく、お主は振り回されやすいかもしれん。',
+    ISFJ: 'あの人は、相手の様子をよく見て合わせてくれるタイプじゃ。じゃが本音は言わずにため込むから、気づいた時には疲れておることもある。',
+    ESFJ: 'あの人は、周りを大事にするやさしいタイプじゃ。返信がこまめなら、それは気にかけておるしるしじゃよ。',
+    ISTJ: 'あの人は、慎重で誠実なタイプじゃ。好きでも、それを言葉にするのに時間がかかる。行動の積み重ねを見てやるのじゃ。',
+    ESTJ: 'あの人は、はっきりした関係を好むタイプじゃ。あいまいな態度が続くなら、まだ迷っておる途中かもしれん。',
+    UNKNOWN: 'あの人は、表に出す顔と、心の中で考えていることに少し差がある人のようじゃ。'
+  };
+
+  // 二人の組み合わせ（いちばん効く違いを1つ）
+  var DIFF = {
+    FT: '二人は、愛情の伝え方の言葉がちがう。言葉で安心したい側と、行動で示そうとする側。すれ違いの多くは、気持ちが無いのではなく、伝え方がちがうだけなんじゃ。',
+    EI: '二人は、連絡や会う回数のちょうどよさがちがう。片方には多すぎて、片方には足りない。温度差に見えて、実はペースのちがいなんじゃよ。',
+    JP: '先のことを決めて安心したい人と、その場の流れを楽しみたい人の組み合わせじゃ。次の約束があいまいなまま、不安だけがふくらみやすいのう。',
+    NS: '話していて楽しいのに、ふとした時にわかってもらえておらんと感じることがあるじゃろう。見ている景色が少しちがう二人なんじゃ。',
+    SAME: '二人は似た者同士じゃ。わかり合える反面、同じところでつまずきやすい。どちらも動かずに、時間だけが過ぎてしまうことがあるのう。',
+    UNKNOWN: '相手のタイプがわからんでも、お主の話を聞けば、二人の間で何が起きておるかは見えてくるぞ。'
+  };
+
+  var CLOSERS = [
+    'それとな、お主は平気なふりをするのが上手じゃが、本当はちゃんと大事にされたいと思っておる。',
+    'それとな、お主は相手の気持ちを確かめたいのに、重いと思われるのが怖くて一歩引いてしまうことがあるじゃろう。',
+    'それとな、お主はうまくいっている時ほど、この先が不安になる。そんな自分を少しもてあましておらんか。'
+  ];
+
+  var state = { self: null, target: null };
+  var params = new URLSearchParams(location.search);
+  var src = params.get('utm_source') || 'direct';
+  track('view_start', { source: src });
+
+  function buildGrid(id, role) {
+    var el = document.getElementById(id);
+    TYPES.forEach(function (t) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = t; b.dataset.v = t;
+      el.appendChild(b);
+    });
+    var u = document.createElement('button');
+    u.type = 'button'; u.className = 'unknown'; u.textContent = 'わからない'; u.dataset.v = 'UNKNOWN';
+    el.appendChild(u);
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      Array.prototype.forEach.call(el.querySelectorAll('button'), function (x) { x.classList.toggle('on', x === b); });
+      state[role] = b.dataset.v;
+      track('select_mbti', { role: role, mbti: b.dataset.v });
+      document.getElementById('go').disabled = !(state.self && state.target);
+      var next = role === 'self' && !state.target ? document.getElementById('target') : (state.self && state.target ? document.getElementById('go') : null);
+      if (next) next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  function mainDiff(a, b) {
+    if (a === 'UNKNOWN' || b === 'UNKNOWN') return 'UNKNOWN';
+    var order = [[2, 'FT'], [0, 'EI'], [3, 'JP'], [1, 'NS']];
+    for (var i = 0; i < order.length; i++) {
+      var k = order[i][0];
+      if (a.charAt(k) !== b.charAt(k)) return order[i][1];
+    }
+    return 'SAME';
+  }
+
+  function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
+
+  function label(t) { return t === 'UNKNOWN' ? 'タイプ不明' : t; }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var s = state.self, t = state.target;
+    document.getElementById('pair').textContent = 'お主 ' + label(s) + ' × あの人 ' + label(t);
+    var lines = [
+      'ほう、なるほどのう。',
+      SELF[s],
+      TARGET[t],
+      DIFF[mainDiff(s, t)],
+      CLOSERS[hash(s + t) % CLOSERS.length]
+    ];
+    var box = document.getElementById('reading');
+    box.innerHTML = '';
+    lines.forEach(function (txt) { var p = document.createElement('p'); p.textContent = txt; box.appendChild(p); });
+    var r = document.getElementById('result');
+    r.classList.add('show');
+    r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    track('show_quick_result', { self: s, target: t, pair_type: mainDiff(s, t) });
+  });
+
+  // ---- いつものブラウザで相談へ ----
+  var ua = navigator.userAgent || '';
+  var isAndroid = /Android/i.test(ua);
+  var isIOS = /iPhone|iPad|iPod/i.test(ua);
+  var isLine = /\bLine\//i.test(ua);
+  var isInApp = /TikTok|musical_ly|Bytedance|trill_|Instagram|FBAN|FBAV|\bLine\//i.test(ua);
+  if (isInApp) document.getElementById('continue-note').textContent = 'アプリの中だと話した内容が消えやすいので、いつものブラウザで開くぞ';
+
+  function chatUrl() {
+    var q = new URLSearchParams({
+      from: 'quick',
+      self: state.self || '',
+      target: state.target || '',
+      utm_source: src === 'direct' ? 'quick' : src,
+      utm_medium: 'quick',
+      utm_campaign: params.get('utm_campaign') || 'start'
+    });
+    return location.origin + '/chat.html?' + q.toString();
+  }
+
+  function showGuide() {
+    document.getElementById('guide').classList.add('show');
+    track('escape_guide_shown', { android: isAndroid, ios: isIOS });
+  }
+
+  var left = false;
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && !left) { left = true; track('escape_success', { android: isAndroid, ios: isIOS }); }
+  });
+
+  document.getElementById('continue').addEventListener('click', function () {
+    var url = chatUrl();
+    track('click_continue', { inapp: isInApp, android: isAndroid, ios: isIOS, self: state.self, target: state.target });
+    if (!isInApp) { location.href = url; return; }
+    if (isLine) { location.href = url + '&openExternalBrowser=1'; return; }
+    if (isAndroid) { location.href = 'intent:' + url + '#Intent;end'; }
+    else if (isIOS) { location.href = 'x-safari-' + url; }
+    setTimeout(function () { if (!left) showGuide(); }, 1500);
+  });
+
+  document.getElementById('copy').addEventListener('click', function () {
+    var url = chatUrl();
+    var done = function () { document.getElementById('copy').textContent = 'コピーしたぞ'; track('copy_link'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('このリンクをコピーしてくだされ', url); });
+    } else { window.prompt('このリンクをコピーしてくだされ', url); }
+  });
+
+  document.getElementById('stay').addEventListener('click', function () {
+    track('escape_stay');
+    location.href = chatUrl();
+  });
+
+  buildGrid('self', 'self');
+  buildGrid('target', 'target');
+})();
+</script>
+</body>
+</html>
