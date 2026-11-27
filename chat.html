@@ -2019,11 +2019,11 @@ async function startCheckout(token, tier) {
   window.location.href = data.url;
 }
 
-async function fetchPaidSummaryJson() {
+async function fetchPaidSummaryJson(hist = history) {
   const resp = await fetch("/api/paid-summary", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ profile, history }),
+    body: JSON.stringify({ profile, history: hist }),
   });
   const raw = await resp.text();
   if (!resp.ok) throw new Error(`paid-summary error: ${resp.status} ${raw}`);
@@ -2060,7 +2060,11 @@ async function streamTextPlain(endpoint, bodyObj, bubbleTitle, onBubble) {
    13.5) 無料レポート生成中のローテーションメッセージ
    （summaryJson生成〜レポート出力まで、5秒ごとに切り替える）
    =========================== */
+// 最後の発言を送った時点で、レポートの設計図づくりを先に始めておく（締めの返事と同時に進めて待ち時間を縮める）
+let summaryPromise = null;
+
 const REPORT_LOADING_MSGS = [
+  "お主の話をまとめておる…（30秒ほどかかるぞ）",
   "お主の性格を考えておる…",
   "相手の性格を考えておる…",
   "二人の恋の構図を整理しておる…",
@@ -2125,7 +2129,12 @@ hideProgress();
 
   try {
     // 1) summaryJson（設計図）作成（有料と同じ）
-    const summaryJson = await fetchPaidSummaryJson();
+    let summaryJson = null;
+    if (summaryPromise) {
+      try { summaryJson = await summaryPromise; } catch (e) { console.warn("先に始めた設計図づくりが失敗。作り直す:", e); }
+      summaryPromise = null;
+    }
+    if (!summaryJson) summaryJson = await fetchPaidSummaryJson();
 
     // 2) ローディングバブルを消してからレポートストリーム開始
     stopReportLoading();
@@ -2367,6 +2376,13 @@ async function sendFree(){
     ...history,
     { role:"user", content: buildUserMeta(profile, phase, text, { firstTurn:false, finalTurn:isFinalTurn }) }
   ];
+
+  // 最後の発言なら、締めの返事を待たずにレポートの設計図づくりを始める
+  // （設計図に使う会話は、この最後の発言まで。締めの返事は振り返りなので入れなくても中身は変わらない）
+  if (isFinalTurn && !summaryPromise) {
+    summaryPromise = fetchPaidSummaryJson([...history, { role: "user", content: msgs[msgs.length - 1].content }]);
+    summaryPromise.catch(() => {});  // 失敗時は endFreeChatAndShowPaywall 側で作り直す
+  }
 
   try{
     scheduleTypingBubble(2000);            // ★追加
