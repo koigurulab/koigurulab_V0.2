@@ -858,6 +858,30 @@ const steps = [
   { key:"style",       kind:"choice", ask:`相談スタイルを選んでくれ。`, choices:["1) もやもや整理したい","2) 今後のアクションを決めたい"] }
 ];
 
+// start.html（10秒診断）から来た人は、そこで選んだMBTIをそのまま使う（同じ質問を2回しない）
+const PREFILL = (() => {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get("from") !== "quick") return {};
+    const norm = (v) => {
+      v = String(v || "").toUpperCase();
+      if (v === "UNKNOWN") return "わからない";
+      return MBTI_LIST.includes(v) ? v : "";
+    };
+    const out = {};
+    const self = norm(q.get("self"));
+    const target = norm(q.get("target"));
+    if (self) out.selfMBTI = self;
+    if (target) out.targetMBTI = target;
+    return out;
+  } catch (e) {
+    return {};
+  }
+})();
+if (Object.keys(PREFILL).length) {
+  steps[0].ask = `よく来てくれたな。恋愛仙人じゃ。さっきの診断の続きを、ここでじっくりやろう。まずはお主の名前を教えておくれ`;
+}
+
 let idx = 0;
 
 // LLM用の history
@@ -1243,6 +1267,20 @@ function showAsk(){
   choicesWrap.innerHTML = "";
   freeInput.value = "";
   const s = steps[idx];
+
+  // 診断ページで選んだMBTIがあれば、聞き直さずにそのまま回答する
+  const pre = PREFILL[s.key];
+  if (pre) {
+    delete PREFILL[s.key];
+    const who = s.key === "selfMBTI" ? "お主" : "相手";
+    addAssistant(pre === "わからない"
+      ? `さっきの診断では、${who}のMBTIはわからないにしておったな。それでも大丈夫じゃ、話を聞けば見えてくるぞ。`
+      : `さっきの診断で選んだ${who}のMBTIは${pre}じゃったな。そのまま使わせてもらうぞ。`);
+    stepHint.textContent = "";
+    track('prefill_mbti', { key: s.key, value: pre });
+    setTimeout(() => onAnswer(pre), 400);
+    return;
+  }
   const text = typeof s.ask === "function" ? s.ask(profile) : s.ask;
   addAssistant(text);
 
