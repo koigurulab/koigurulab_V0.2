@@ -847,14 +847,14 @@ const steps = [
   { key:"targetGender",kind:"choice", ask:`恋愛対象の性別は？`,                               choices:TARGET_GENDER },
   { key:"targetMBTI",  kind:"choice", ask:`相手のMBTIが分かれば教えてくれ`,                   choices:MBTI_LIST },
   { key:"targetLove",  kind:"choice", ask:`相手の恋愛16タイプは分かるかの？`,                 choices:LOVE16_LIST },
-  { key:"ageRange",    kind:"input",  ask:`お主の年齢レンジを教えてくれ（例：20〜22）` },
-  { key:"status",      kind:"input",  ask:`学生／社会人などの状態は？（例：社会人1〜3年目）` },
-  { key:"relation",    kind:"input",  ask:`関係性は？（例：片思い／交際◯ヶ月／元カノ など）` },
+  { key:"ageRange",    kind:"choice", ask:`お主の年齢はどのあたりじゃ？`,                   choices:["18〜19","20〜22","23〜25","26〜29","30〜34","35以上"] },
+  { key:"status",      kind:"choice", ask:`学生か、社会人か？`,                               choices:["大学生・専門学生","社会人1〜3年目","社会人4年目以上","フリーター","その他（下に書く）"] },
+  { key:"relation",    kind:"choice", ask:`相手との関係は？（交際の長さなどは下に書いてもよいぞ）`, choices:["片思い","いい感じ（付き合う前）","付き合っている","別れた・復縁したい","その他（下に書く）"] },
   { key:"meeting",     kind:"choice", ask:`出会い方は？`,                                     choices:MEETING },
-  { key:"known",       kind:"input",  ask:`知り合ってどれくらい？（例：1〜3ヶ月）` },
+  { key:"known",       kind:"choice", ask:`知り合ってどれくらいじゃ？`,                       choices:["1ヶ月未満","1〜3ヶ月","3〜6ヶ月","半年〜1年","1年以上"] },
   { key:"contact",     kind:"input",  ask:`連絡頻度と、どちらからが多い？（例：2〜3日に1回／送るのは：自分からが多い）` },
   { key:"worry",       kind:"input",  ask:`いちばん悩んでいるポイントを3行くらいでそのまま書いてくれ。詳細であればあるほど、わしは相談に乗りやすいぞ` },
-  { key:"mental",      kind:"input",  ask:`今の心の状態は？（例：不安はあるが日常は回る）` },
+  { key:"mental",      kind:"choice", ask:`今の心の状態は？近いものを選ぶか、下に書いてくれ`,   choices:["不安はあるが日常は回っている","夜に考えすぎてしんどい","かなりつらい","落ち着いて整理したい"] },
   { key:"style",       kind:"choice", ask:`相談スタイルを選んでくれ。`, choices:["1) もやもや整理したい","2) 今後のアクションを決めたい"] }
 ];
 
@@ -1252,6 +1252,12 @@ function showAsk(){
       btn.className = "choice";
       btn.textContent = label;
      btn.addEventListener("click", () => {
+  // 「その他（下に書く）」は送信せず、入力欄に書いてもらう
+  if (label.includes("（下に書く）")) {
+    freeInput.focus();
+    stepHint.textContent = "下の入力欄に書いて『送信』じゃ。";
+    return;
+  }
   // いったん同じchoices内の選択状態をリセット
   choicesWrap.querySelectorAll("button.choice").forEach(b => b.classList.remove("is-selected"));
   // 押したボタンだけ選択状態に
