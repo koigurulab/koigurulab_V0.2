@@ -2286,6 +2286,13 @@ function showPaywallButtons(token) {
   const note = document.createElement("div");
   note.className = "tier-note";
   note.textContent = "全プラン買い切り。追加料金なし。カフェ1杯分から始められるぞい。";
+  const privacy = document.createElement("a");
+  privacy.href = "/privacy.html";
+  privacy.target = "_blank";
+  privacy.rel = "noopener";
+  privacy.textContent = "プライバシーポリシー";
+  note.appendChild(document.createTextNode(" "));
+  note.appendChild(privacy);
   block.appendChild(note);
 
   // ── LINE 友達追加リンク ──
