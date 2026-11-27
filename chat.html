@@ -277,6 +277,13 @@
       gap: 8px;
       margin-top: 8px;
     }
+    /* 仙人の返答の番号つき選択肢：番号だけのボタン（全文は吹き出しの中にある） */
+    .choice.num-choice {
+      min-width: 48px;
+      font-size: 15px;
+      padding: 9px 14px;
+    }
+    .choice.num-choice.other { font-size: 12px; }
    /* ===== Choice chips：世界観（桜・和菓子） ===== */
 .choice {
   appearance: none;
@@ -688,6 +695,51 @@ const freeInput   = document.getElementById("free-input");
 const sendBtn     = document.getElementById("send");
 const statusEl    = document.getElementById("status");
 const stepHint    = document.getElementById("step-hint");
+
+// 仙人の返答の最後にある番号つき選択肢（1. 〜 / 2. 〜）を、番号ボタンで返せるようにする
+function parseReplyOptions(reply) {
+  const lines = String(reply || "").split("\n").map(l => l.trim());
+  const opts = [];
+  let i = lines.length - 1;
+  // 末尾側から、最後の番号つきの塊を探す（本文中の箇条書きは拾わない）
+  while (i >= 0 && !/^[1-9][\.．、)）]/.test(lines[i])) i--;
+  while (i >= 0 && (/^[1-9][\.．、)）]/.test(lines[i]) || lines[i] === "")) {
+    const m = lines[i].match(/^([1-9])[\.．、)）]\s*(.+)$/);
+    if (m) opts.unshift({ n: m[1], text: m[2].trim() });
+    i--;
+  }
+  return opts.length >= 2 ? opts : [];
+}
+
+function showReplyOptions(reply) {
+  choicesWrap.innerHTML = "";
+  const opts = parseReplyOptions(reply);
+  if (!opts.length) {
+    choicesWrap.classList.add("is-hidden");
+    stepHint.textContent = "";
+    return;
+  }
+  opts.forEach(o => {
+    const isOther = /その他/.test(o.text);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "choice num-choice" + (isOther ? " other" : "");
+    btn.textContent = isOther ? `${o.n}（自分で書く）` : o.n;
+    btn.addEventListener("click", () => {
+      track('tap_reply_option', { option: o.n, other: isOther });
+      if (isOther) {
+        freeInput.focus();
+        stepHint.textContent = "下の入力欄に、お主の言葉で書いて送信するのじゃ。";
+        return;
+      }
+      freeInput.value = `${o.n}. ${o.text}`;
+      sendFree();
+    });
+    choicesWrap.appendChild(btn);
+  });
+  choicesWrap.classList.remove("is-hidden");
+  stepHint.textContent = "番号を押して答えられるぞ。自分の言葉で書いてもよい。";
+}
 
 function addAssistant(text){
   const row = document.createElement("div");
@@ -1698,6 +1750,7 @@ updateProgress();
     history.push({role:"user",content:msgs[2].content});
     history.push({role:"assistant",content:reply});
     saveDraft("chat");
+    showReplyOptions(reply);
   }catch(e){
     console.warn("first turn error:", e);
     addAssistant("今は少し調子が悪いようじゃ…時間をおいて試してくれんかのう。");
@@ -1885,6 +1938,8 @@ function restoreFromDraft(draft) {
     choicesWrap.innerHTML = "";
     choicesWrap.classList.add("is-hidden");
     stepHint.textContent = "";
+    const lastAssistant = [...(draft.displayLog || [])].reverse().find(m => m.role !== "user");
+    if (lastAssistant) showReplyOptions(lastAssistant.text);
     showProgress();
     updateProgress();
     setBusy(false);
@@ -2241,6 +2296,9 @@ async function sendFree(){
 
   addUser(text);
   freeInput.value = "";
+  choicesWrap.innerHTML = "";
+  choicesWrap.classList.add("is-hidden");
+  stepHint.textContent = "";
   setBusy(true);
   statusEl.textContent = "仙人が考え中じゃ…";
 
@@ -2276,6 +2334,7 @@ updateProgress();
       await endFreeChatAndShowPaywall();
       return;
     }
+    showReplyOptions(reply);
 
   } catch(e){
     console.warn("chat error:", e);
