@@ -9,6 +9,10 @@
 3. 動画版：`python3 tools/tiktok/make_video.py <key>` → `<key>_video.mp4`
 ※ out/ はコミットしない
 
+## 週次の1タイプ投稿（tools/tiktok）
+- 原稿：`weekN_posts.py`、書き出し：`render_type_posts.py`、Instagram用4:5：`make_ig.py`
+- 予約までの手順：`tools/tiktok/SCHEDULING.md`
+
 ## SEOページ（tools/seo）
 - `mbti_data.py` を編集 → `python3 tools/seo/gen_mbti.py mbti` で /mbti/ を再生成
 - `og.py`：OGP画像の再生成
