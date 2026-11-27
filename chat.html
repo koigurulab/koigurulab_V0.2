@@ -261,6 +261,20 @@
 @keyframes blink { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
     
     .row.assistant { justify-content: flex-start; }
+    /* 無料レポートの見出し（【…】）とタイトル */
+    .bubble .rep-title { display: inline-block; width: 100%; font-size: 16px; font-weight: 900; line-height: 1.5; margin: 2px 0 4px; }
+    .bubble .rep-h {
+      display: inline-block;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 4px 0 2px;
+      padding: 6px 10px;
+      border-left: 4px solid var(--accent);
+      background: #fff1f2;
+      border-radius: 8px;
+      font-weight: 800;
+      color: #9f1239;
+    }
     .row.assistant .bubble {
       background: #ffffff;
       color: #111827;
@@ -738,6 +752,35 @@ function showReplyOptions(reply) {
   });
   choicesWrap.classList.remove("is-hidden");
   stepHint.textContent = "番号を押して答えられるぞ。自分の言葉で書いてもよい。";
+}
+
+// 無料レポートの見出し（【…】で始まる行）とタイトルを目立たせる。文字の中身は変えない
+function formatReportBubble(bubble) {
+  if (!bubble) return;
+  const esc = (t) => t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const lines = bubble.textContent.split("\n");
+  let html = "";
+  let titleDone = false;
+  lines.forEach((line, i) => {
+    const t = line.trim();
+    const last = i === lines.length - 1;
+    const nl = last ? "" : "\n";   // 改行は残す（文字の中身を変えない）
+    if (/^【[^】]{1,24}】/.test(t)) {
+      html += `<span class="rep-h">${esc(line)}</span>` + nl;
+      titleDone = true;             // 最初の見出しより後はタイトル扱いしない
+    } else if (!titleDone && t && !t.startsWith("──")) {
+      html += `<span class="rep-title">${esc(line)}</span>` + nl;
+      titleDone = true;
+    } else {
+      html += esc(line) + nl;
+    }
+  });
+  bubble.innerHTML = html;
+}
+function formatReportInChat() {
+  const b = [...document.querySelectorAll("#chat .row.assistant .bubble")]
+    .find(x => x.textContent.startsWith("── ここからは"));
+  formatReportBubble(b);
 }
 
 function addAssistant(text){
@@ -1997,6 +2040,7 @@ function restoreFromDraft(draft) {
       else addAssistant(m.text);
     });
     isRestoring = false;
+    formatReportInChat();
 
     showProgress();
     updateProgress();
@@ -2136,6 +2180,7 @@ hideProgress();
       "── ここからは『無料レポート（切り取り）』じゃ。\n\n",
       (bubble) => scrollToReportStart(bubble)
     );
+    formatReportInChat();
     track('free_report_shown', { turn: MAX_TURNS });
     // 開き直しても無料レポートが消えないよう、表示ログに残す
     displayLog.push({ role: "assistant", text: freeReportText || "" });
@@ -2495,6 +2540,7 @@ function bootTestMode() {
     lockChatInput("無料レポートは完了じゃ。購入ボタンから進めてくれ。");
     enterReportLayout();
     const bubble = addAssistantStreamBubble(TEST_FREE_REPORT);
+    formatReportBubble(bubble);
     displayLog.push({ role: "assistant", text: TEST_FREE_REPORT });
     scrollToReportStart(bubble);
     showPaywallButtons("test-token");
