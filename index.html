@@ -475,6 +475,10 @@
     }
     @media (max-width: 540px) {
       .plan-grid { grid-template-columns: 1fr; gap: 12px; }
+      /* 1列表示では購入画面と同じ順（¥1,980 → ¥980 → ¥480） */
+      .plan-1980 { order: 1; }
+      .plan-card.featured { order: 2; }
+      .plan-480 { order: 3; }
     }
 
     .plan-card {
@@ -808,7 +812,7 @@
         <div class="flow-step-num">3</div>
         <div class="flow-step-icon">📄</div>
         <div class="flow-step-title">レポートを受け取る</div>
-        <div class="flow-step-note">恋のクセ5つ+構図<br>無料で3,000字以上</div>
+        <div class="flow-step-note">恋のクセ2つ+構図<br>無料で約3,000字</div>
       </div>
     </div>
   </div>
@@ -862,12 +866,12 @@
 
     <!-- 無料メモ -->
     <div class="plan-free-note">
-      ✅ <span><strong>無料で受け取れるもの：</strong>チャット6ターン ＋ 恋のクセ5項目 ＋ 無料レポート3,000字+</span>
+      ✅ <span><strong>無料で受け取れるもの：</strong>チャット6ターン ＋ 恋のクセ5つのうち2つを詳しく ＋ 無料レポート約3,000字</span>
     </div>
 
     <div class="plan-grid">
       <!-- ¥480 -->
-      <div class="plan-card">
+      <div class="plan-card plan-480">
         <div class="plan-name">診断レポート</div>
         <div class="plan-price">¥480<small> /買い切り</small></div>
         <div class="plan-desc">まず自分を知りたい人に</div>
@@ -897,7 +901,7 @@
       </div>
 
       <!-- ¥1980 -->
-      <div class="plan-card">
+      <div class="plan-card plan-1980">
         <div class="plan-name">個別戦略書</div>
         <div class="plan-price">¥1,980<small> /買い切り</small></div>
         <div class="plan-desc">本気で攻略したい人に</div>
@@ -962,7 +966,7 @@
           無料でどこまで使えますか？
           <span class="faq-toggle">+</span>
         </summary>
-        <p class="faq-a">チャット6ターン＋無料レポート（3,000〜4,000字）まで完全無料。さらに詳しいフルレポート（8,000字以上）は¥480〜の買い切り（3プランから選べます）です。</p>
+        <p class="faq-a">チャット6ターン＋無料レポート（約3,000字）まで完全無料。さらに詳しいフルレポート（8,000字以上）は¥480〜の買い切り（3プランから選べます）です。</p>
       </details>
 
       <details class="faq">
