@@ -129,6 +129,13 @@
       font-size: 16px;
       font-weight: 800;
       letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    /* スマホではロゴの文字を隠し、ボタン2つを1行に収める */
+    @media (max-width: 420px) {
+      .header-inner { padding: 10px 12px; gap: 8px; }
+      .logo-name { display: none; }
+      .btn-header { padding: 9px 14px; }
     }
     .btn-header {
       display: inline-flex;
