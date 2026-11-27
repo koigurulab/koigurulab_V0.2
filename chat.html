@@ -502,6 +502,8 @@
 }
 
 .progress-pill .badge{
+  white-space: nowrap;
+  flex-shrink: 0;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -961,9 +963,10 @@ function updateProgress() {
   const remaining = Math.max(0, MAX_TURNS - freeTurnsDone);
 
   if (remaining > 0) {
+    // ※ピルは inline-flex なので、文章は1つの span にまとめる（分けると縦に折れる）
     progressPill.innerHTML =
-      `<span class="badge">${remaining}</span>` +
-      `あと<span style="font-weight:900;">${remaining}</span>回で、お主専用の「恋の癖レポート」を無料で渡すぞい`;
+      `<span class="badge">あと${remaining}回</span>` +
+      `<span>答えたら、お主専用の恋の癖レポートを無料で渡すぞい</span>`;
   } else {
     progressPill.textContent = "無料レポートをまとめておるぞい…";
   }
