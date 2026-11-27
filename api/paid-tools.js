@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     if (!rawKey) return res.status(500).json({ error: "Missing OPENAI_API_KEY" });
     const apiKey = rawKey.trim();
 
-    const { summaryJson, tier } = req.body || {};
+    const { summaryJson, tier, reportText } = req.body || {};
     if (!summaryJson || typeof summaryJson !== "object") {
       return res.status(400).json({ error: "Invalid body. Expected { summaryJson, tier }" });
     }
@@ -26,10 +26,15 @@ export default async function handler(req, res) {
 あなたは「恋ぐるラボ」の付録ツール生成AIです。
 入力は summaryJson（レポート設計図）です。
 
-仙人の口調（お主/〜じゃ/〜のう）は使わない。付録はツール形式なので、簡潔で実用的なトーンで書く。
-ただし温かみのある日本語で、冷たくならないように。
+文体：
+- 説明の文（situation / timing / avoid / timing_guide / next_action / signal / checkpoint / wait_days / retreat_sign / day以外の各項目）は、恋愛仙人の口調で短く書く。一人称は「わし」、相手は「お主」、語尾は 〜じゃ / 〜のう / 〜ぞ。敬語（です・ます）は使わない。
+- LINEの文面（line_templates[].message と branch_scenario.if_no_reply.next_message）だけは、お主が相手にそのまま送る自然な話し言葉で書く。仙人口調にしない。
+- line_templates はすべて相手に送るためのLINE文面にする。自分に言い聞かせる言葉やメモは入れない。
+- ダブルクォーテーション（“ ” や " "）で言葉を囲まない。
 
-summaryJsonにない事実は作らない（捏造禁止）。言い換えは可。
+内容：
+- summaryJsonにない事実は作らない（捏造禁止）。言い換えは可。
+- 完全版の本文が渡された場合、本文で決めたルールや待つ日数・連絡の仕方と食い違わないように作る。本文と同じ文章の繰り返しは避け、本文を実際に使える形（文面・チェック・日ごとの行動）に落とし込む。
 `.trim();
 
     // ¥980用スキーマ
@@ -81,7 +86,7 @@ summaryJsonにない事実は作らない（捏造禁止）。言い換えは可
       properties: {
         line_templates: {
           type: "array",
-          minItems: 8,
+          minItems: 10,
           maxItems: 10,
           items: {
             type: "object",
@@ -174,11 +179,16 @@ summaryJsonにない事実は作らない（捏造禁止）。言い換えは可
 
     const schema = is1980 ? schema1980 : schema980;
 
+    // 完全版の本文（あれば）。食い違い防止のために渡す。長すぎる場合は切り詰める
+    const reportPart = (typeof reportText === "string" && reportText.trim())
+      ? "\n\n完全版の本文（これと食い違わないように作る）:\n" + reportText.slice(0, 16000)
+      : "";
+
     const userPrompt = is1980
       ? `次の summaryJson をもとに、個別戦略書（¥1,980）の付録ツールを生成してください。
 
 生成内容：
-1. line_templates（8〜10本）: 状況別LINEテンプレート。situation（どんな時に使う）、message（送る文面）、timing（いつ送るべきか）、avoid（この文面のNG使い方）
+1. line_templates（10本）: 状況別LINEテンプレート。situation（どんな時に使う）、message（送る文面）、timing（いつ送るべきか）、avoid（この文面のNG使い方）
 2. ng_checklist（12〜15項目）: この人が絶対やってはいけないNG行動リスト。具体的に。
 3. timing_guide: 相手のタイプに合わせた連絡タイミングガイド（200〜400字）
 4. next_action: 今週中にやるべきこと（100〜200字）
@@ -187,7 +197,7 @@ summaryJsonにない事実は作らない（捏造禁止）。言い換えは可
 7. week_plan: 7日間の行動プラン。各日に action（やること）、avoid（やらないこと）、checkpoint（確認ポイント）
 
 summaryJson:
-` + JSON.stringify(summaryJson, null, 2)
+` + JSON.stringify(summaryJson, null, 2) + reportPart
       : `次の summaryJson をもとに、攻略レポート（¥980）の付録ツールを生成してください。
 
 生成内容：
@@ -197,7 +207,7 @@ summaryJson:
 4. next_action: 今週中にやるべきこと（100〜200字）
 
 summaryJson:
-` + JSON.stringify(summaryJson, null, 2);
+` + JSON.stringify(summaryJson, null, 2) + reportPart;
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

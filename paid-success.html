@@ -310,6 +310,27 @@
       color: var(--ink);
       margin: 0 0 6px;
     }
+    .day-card{
+      background: #fff;
+      border: 1px solid #f3d6d6;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .day-card-title{ font-weight: 800; font-size: 14px; margin-bottom: 4px; }
+    .day-row{ font-size: 14px; line-height: 1.6; margin-top: 4px; }
+    .day-label{
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 1px 8px;
+      margin-right: 6px;
+      vertical-align: 1px;
+    }
+    .day-label.do{ background: #e8f7ee; color: #1f7a45; }
+    .day-label.dont{ background: #fdecec; color: #b42318; }
+    .day-label.check{ background: #eef2ff; color: #3949ab; }
     .week-table{
       width: 100%;
       border-collapse: separate;
@@ -629,18 +650,15 @@
       if (tools.week_plan && tools.week_plan.length) {
         html += '<div class="appendix-section">';
         html += '<div class="appendix-section-title">\uD83D\uDCC5 7日間アクションプラン</div>';
-        html += '<table class="week-table"><thead><tr>';
-        html += '<th>Day</th><th>やること</th><th>やらないこと</th><th>チェック</th>';
-        html += '</tr></thead><tbody>';
         tools.week_plan.forEach(d => {
-          html += '<tr>';
-          html += '<td style="font-weight:700;white-space:nowrap;">' + escHtml(d.day) + '</td>';
-          html += '<td>' + escHtml(d.action) + '</td>';
-          html += '<td>' + escHtml(d.avoid) + '</td>';
-          html += '<td>' + escHtml(d.checkpoint) + '</td>';
-          html += '</tr>';
+          html += '<div class="day-card">';
+          html += '<div class="day-card-title">' + escHtml(d.day) + '</div>';
+          html += '<div class="day-row"><span class="day-label do">やること</span>' + escHtml(d.action) + '</div>';
+          html += '<div class="day-row"><span class="day-label dont">やらないこと</span>' + escHtml(d.avoid) + '</div>';
+          html += '<div class="day-row"><span class="day-label check">確かめること</span>' + escHtml(d.checkpoint) + '</div>';
+          html += '</div>';
         });
-        html += '</tbody></table></div>';
+        html += '</div>';
       }
     }
 
@@ -1009,7 +1027,7 @@ B）Aができない／設計図が消えている（最後の手段）
           const toolsRes = await fetch("/api/paid-tools", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ summaryJson, tier }),
+            body: JSON.stringify({ summaryJson, tier, reportText: outEl.textContent }),
           });
           if (toolsRes.ok) {
             const toolsData = await toolsRes.json();
