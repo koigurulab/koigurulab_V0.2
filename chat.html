@@ -330,33 +330,40 @@
 /* ===== 3-tier pricing cards ===== */
 .tier-wrap {
   display: flex;
-  gap: 8px;
-  margin: 12px 0 8px;
+  flex-direction: column;
+  gap: 16px;
+  margin: 16px 0 8px;
   width: 100%;
 }
 .tier-card {
-  flex: 1;
-  min-width: 0;
   background: #fff;
   border: 1.5px solid var(--line);
   border-radius: 16px;
-  padding: 14px 10px 12px;
+  padding: 16px 14px 14px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: stretch;
+  text-align: left;
   position: relative;
   transition: border-color .2s, box-shadow .2s;
 }
 .tier-card.is-recommended {
   border-color: var(--accent);
+  border-width: 2px;
+  background: #fffafa;
   box-shadow: 0 8px 24px rgba(249,115,115,.22);
+}
+.tier-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 8px;
 }
 .tier-badge {
   position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: -11px;
+  left: 14px;
   background: linear-gradient(135deg, #f97373, #fb7185);
   color: #fff;
   font-size: 10px;
@@ -367,13 +374,15 @@
   letter-spacing: .04em;
 }
 .tier-name {
-  font-size: 13px;
+  white-space: nowrap;
+  font-size: 16px;
   font-weight: 800;
   color: var(--ink);
-  margin: 6px 0 2px;
+  margin: 0;
 }
 .tier-price {
-  font-size: 22px;
+  font-size: 24px;
+  white-space: nowrap;
   font-weight: 900;
   color: var(--accent-dark);
   line-height: 1.1;
@@ -384,20 +393,20 @@
   color: var(--muted);
 }
 .tier-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
-  margin: 6px 0 8px;
+  margin: 2px 0 10px;
   line-height: 1.5;
 }
 .tier-features {
   list-style: none;
   padding: 0;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   text-align: left;
   width: 100%;
 }
 .tier-features li {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   padding: 2px 0;
   color: var(--ink);
@@ -418,12 +427,12 @@
 .tier-btn {
   appearance: none;
   width: 100%;
-  padding: 9px 6px;
+  padding: 12px 8px;
   border-radius: 999px;
   border: 1.5px solid var(--accent);
   background: #fff;
   color: var(--accent-dark);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
   margin-top: auto;
@@ -2093,17 +2102,16 @@ function showPaywallButtons(token) {
   // 3-tier cards
   const tierData = [
     {
-      tier: "480", name: "診断レポート", price: "480",
-      desc: "まずは自分を知りたい人に",
+      tier: "1980", name: "個別戦略書", price: "1,980",
+      desc: "本気で攻略したい人に",
       features: [
-        "全7章の性格・恋愛分析",
-        "恋の5つのクセ診断",
-        "自分ルール＆行動プラン",
+        "攻略レポートの全内容",
+        "LINEテンプレ 10本",
+        "7日間アクションプラン",
+        "脈あり／撤退 判定表",
+        "リスクシナリオ＆回避策",
       ],
-      mutedFeatures: [
-        "LINEテンプレ",
-        "NG行動チェックリスト",
-      ],
+      mutedFeatures: [],
       recommended: false,
     },
     {
@@ -2120,16 +2128,17 @@ function showPaywallButtons(token) {
       recommended: true,
     },
     {
-      tier: "1980", name: "個別戦略書", price: "1,980",
-      desc: "本気で攻略したい人に",
+      tier: "480", name: "診断レポート", price: "480",
+      desc: "まずは自分を知りたい人に",
       features: [
-        "攻略レポートの全内容",
-        "LINEテンプレ 10本",
-        "7日間アクションプラン",
-        "脈あり／撤退 判定表",
-        "リスクシナリオ＆回避策",
+        "全7章の性格・恋愛分析",
+        "恋の5つのクセ診断",
+        "自分ルール＆行動プラン",
       ],
-      mutedFeatures: [],
+      mutedFeatures: [
+        "LINEテンプレ",
+        "NG行動チェックリスト",
+      ],
       recommended: false,
     },
   ];
@@ -2143,8 +2152,8 @@ function showPaywallButtons(token) {
 
     let html = "";
     if (t.recommended) html += '<div class="tier-badge">迷ったらコレ</div>';
-    html += '<div class="tier-name">' + t.name + '</div>';
-    html += '<div class="tier-price">&yen;' + t.price + '<small> /買い切り</small></div>';
+    html += '<div class="tier-head"><div class="tier-name">' + t.name + '</div>';
+    html += '<div class="tier-price">&yen;' + t.price + '<small> /買い切り</small></div></div>';
     html += '<div class="tier-desc">' + t.desc + '</div>';
     html += '<ul class="tier-features">';
     t.features.forEach(f => { html += '<li>' + f + '</li>'; });
