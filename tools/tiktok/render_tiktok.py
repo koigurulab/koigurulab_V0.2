@@ -82,6 +82,8 @@ def layout(raw_lines, maxw):
             for i, l in enumerate(wrap(s, F_HEAD, maxw)): out.append(("head", l))
         elif s.startswith("✔"):
             for i, l in enumerate(wrap(s[1:].strip(), F_BODY, maxw - 52)): out.append(("check" if i == 0 else "checkcont", l))
+        elif s.startswith("【"):
+            for l in wrap(s, F_HEAD, maxw): out.append(("title", l))
         elif s.startswith("👴"):
             for i, l in enumerate(wrap(s[1:].strip(), F_HEAD, maxw - 60)): out.append(("sage" if i == 0 else "head2", l))
         else:
@@ -130,6 +132,8 @@ def card(img, raw_lines, top=None, extra_img=None):
             d.text((x + 60, y), t, font=F_HEAD, fill=INK)
         elif k == "head2":
             d.text((x + 60, y), t, font=F_HEAD, fill=INK)
+        elif k == "title":
+            d.text((x, y), t, font=F_HEAD, fill=INK)
         else:
             d.text((x, y), t, font=F_BODY, fill=INK)
         y += LH
@@ -141,14 +145,26 @@ def title_slide(bg, title):
     img = bg.copy()
     d = ImageDraw.Draw(img)
     lines = title.split("\n")
-    lh = 128
-    y = int(H * 0.47 - len(lines) * lh / 2)
+    pad_x, pad_y, gap = 34, 18, 14
+    # 文字の実際の高さ（全行で共通の上端・下端）を測る
+    tops, bottoms = [], []
+    for l in lines:
+        b = d.textbbox((0, 0), l, font=F_TITLE)
+        tops.append(b[1]); bottoms.append(b[3])
+    t_top, t_bot = min(tops), max(bottoms)
+    box_h = (t_bot - t_top) + pad_y * 2
+    total = len(lines) * box_h + (len(lines) - 1) * gap
+    y = int(H * 0.47 - total / 2)
+    boxes = []
     for l in lines:
         tw = d.textlength(l, font=F_TITLE)
         x = (W - tw) / 2
-        d.rounded_rectangle([x - 34, y - 14, x + tw + 34, y + lh - 6], radius=26, fill=(255, 255, 255))
-        d.text((x, y - 4), l, font=F_TITLE, fill=(10, 10, 10))
-        y += lh - 6
+        boxes.append((x, y, tw))
+        y += box_h + gap
+    for x, y, tw in boxes:
+        d.rounded_rectangle([x - pad_x, y, x + tw + pad_x, y + box_h], radius=26, fill=(255, 255, 255))
+    for (x, y, tw), l in zip(boxes, lines):
+        d.text((x, y + pad_y - t_top), l, font=F_TITLE, fill=(10, 10, 10))
     return img
 
 def render_post(p, seed):
