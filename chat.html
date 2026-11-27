@@ -649,7 +649,7 @@
   </div>
 
   <p class="intro-note">
-    ※ 実在の人物とは一切関係ありません。／本サービスは恋愛の整理用コンテンツです。／<a href="/privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
+    ※ 実在の人物とは一切関係ありません。／本サービスは恋愛の整理用コンテンツです。
   </p>
 
   <div class="chat-card" id="chat-card">
@@ -2192,6 +2192,13 @@ function showPaywallButtons(token) {
   const note = document.createElement("div");
   note.className = "tier-note";
   note.textContent = "全プラン買い切り。追加料金なし。カフェ1杯分から始められるぞい。";
+  const privacy = document.createElement("a");
+  privacy.href = "/privacy.html";
+  privacy.target = "_blank";
+  privacy.rel = "noopener";
+  privacy.textContent = "プライバシーポリシー";
+  note.appendChild(document.createTextNode(" "));
+  note.appendChild(privacy);
   block.appendChild(note);
 
   // ── LINE 友達追加リンク ──
