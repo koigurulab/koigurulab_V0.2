@@ -650,6 +650,80 @@
     }
   }
 
+  // ===== 生成済みレポートの保存と再表示 =====
+  function reportKey(token){ return `koi_paid_report_${token}`; }
+  function loadSavedReport(token){
+    const v = safeJsonParse(localStorage.getItem(reportKey(token)));
+    return (v && typeof v.text === "string" && v.text.trim()) ? v : null;
+  }
+  function saveReport(token, data){
+    try {
+      localStorage.setItem(reportKey(token), JSON.stringify(Object.assign({}, data, { savedAt: Date.now() })));
+    } catch (e) {
+      console.warn("report save failed:", e);
+    }
+  }
+
+  function getFullText() {
+    let text = document.getElementById("out").textContent || "";
+    const appendixEl = document.getElementById("appendix");
+    if (appendixEl && appendixEl.classList.contains("is-visible")) {
+      text += "\n\n" + (appendixEl.innerText || "");
+    }
+    return text;
+  }
+
+  function wireSaveButtons(token) {
+    const statusTextEl = document.getElementById("statusText");
+    const copyBtn = document.getElementById("copyBtn");
+    const saveTxtBtn = document.getElementById("saveTxtBtn");
+    const savePdfBtn = document.getElementById("savePdfBtn");
+    const hasText = getFullText().trim().length > 0;
+    [copyBtn, saveTxtBtn, savePdfBtn].forEach(b => { if (b) b.disabled = !hasText; });
+
+    if (copyBtn) copyBtn.onclick = async () => {
+      try{
+        await copyToClipboard(getFullText());
+        statusTextEl.textContent = "コピーしたぞ。メモでもLINEでも貼るがよい。";
+      }catch{
+        statusTextEl.textContent = "コピーに失敗したようじゃ…。もう一度試してくれ。";
+      }
+    };
+    if (saveTxtBtn) saveTxtBtn.onclick = () => {
+      const name = `koiguru_report_${todayStr()}_${shortToken(token)}.txt`;
+      downloadTextAsFile(name, getFullText());
+      statusTextEl.textContent = "TXTで保存したぞ。";
+    };
+    if (savePdfBtn) savePdfBtn.onclick = () => {
+      if (!getFullText().trim()) {
+        statusTextEl.textContent = "まだ本文が無いようじゃ。まず生成を完了させてくれ。";
+        return;
+      }
+      statusTextEl.textContent = "PDFに保存する準備じゃ（印刷画面が開くぞい）。";
+      window.print();
+    };
+  }
+
+  // 「もう一度生成する」（同じtokenで再実行・最大MAX_RETRY回）
+  function bindRetry(token) {
+    const retryBtn = document.getElementById("retry");
+    retryBtn.textContent = "もう一度生成する";
+    retryBtn.onclick = async () => {
+      if (!token) return;
+      const retryHintEl = document.getElementById("retryHint");
+      const cnt = getRetryCount(token);
+      if (cnt >= MAX_RETRY) {
+        retryBtn.disabled = true;
+        if (retryHintEl) retryHintEl.textContent = `再生成回数の上限（${MAX_RETRY}回）に達したようじゃ。時間をおいて再度お試しください。`;
+        document.getElementById("statusText").textContent = "これ以上の再生成はできんようじゃ（上限に到達）。";
+        return;
+      }
+      const next = incRetryCount(token);
+      if (retryHintEl) retryHintEl.textContent = `途中で止まったら「もう一度生成する」を押すのじゃ。（最大2回／現在 ${next} 回）`;
+      await run({ fromRetry: true });
+    };
+  }
+
   function escHtml(str) {
     const d = document.createElement("div");
     d.textContent = String(str || "");
@@ -664,7 +738,8 @@
     const qs = new URLSearchParams(location.search);
     const token = qs.get("token");
     const sessionId = qs.get("session_id");
-    const tier = qs.get("tier") || "480";
+    // URLのtierは仮の値。決済検証後にStripe側の記録（metadata.tier）で上書きする
+    let tier = qs.get("tier") || "480";
 
     const statusTextEl  = document.getElementById("statusText");
     const dotsEl        = document.getElementById("dots");
@@ -701,44 +776,32 @@
       return;
     }
 
-    // リロード等で再実行されるのを抑止（明示的retry以外）
+    // 再訪時：この端末に保存してある完全版をそのまま表示する（再生成しない）
+    const saved = !opts.fromRetry ? loadSavedReport(token) : null;
+    if (saved) {
+      dotsEl.classList.add("is-hidden");
+      outEl.textContent = saved.text;
+      if (saved.tools) renderAppendix(saved.tools, saved.tier || tier);
+      statusTextEl.textContent = "この端末に保存してある完全版じゃ。何度でも読み返すがよい。";
+      retryHint.textContent = "読み返しは何度でもできるぞ。PDFやTXTで保存しておくと、ほかの端末でも読めるのじゃ。";
+      actionsEl.style.display = "flex";
+      retryBtn.style.display = "none";
+      wireSaveButtons(token);
+      isRunning = false;
+      return;
+    }
+
+    // 完了フラグはあるが本文が保存されていない（この修正より前に生成した人）
     if (!opts.fromRetry && isDone(token)) {
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent =
-        "この端末では、すでに完全版の生成が完了しておるようじゃ。下のボタンで保存もできるぞい。";
+        "以前に完全版を作った記録はあるが、本文がこの端末に残っておらんようじゃ。下の「もう一度生成する」で作り直せるぞ。";
       const cnt = getRetryCount(token);
       retryHint.textContent = `途中で止まったら「もう一度生成する」を押すのじゃ。（最大2回／現在 ${cnt} 回）`;
       actionsEl.style.display = "flex";
-
-      // 既に本文が表示されている前提ではないので、保存ボタンは本文がある時だけ有効にする
-      const hasText = (outEl.textContent || "").trim().length > 0;
-      if (copyBtn) copyBtn.disabled = !hasText;
-      if (saveTxtBtn) saveTxtBtn.disabled = !hasText;
-      if (savePdfBtn) savePdfBtn.disabled = !hasText;
-
-      // ボタンイベント（再設定）
-      if (copyBtn) copyBtn.onclick = async () => {
-        try{
-          await copyToClipboard(outEl.textContent);
-          statusTextEl.textContent = "コピーしたぞ。メモでもLINEでも貼るがよい。";
-        }catch{
-          statusTextEl.textContent = "コピーに失敗したようじゃ…。もう一度試してくれ。";
-        }
-      };
-      if (saveTxtBtn) saveTxtBtn.onclick = () => {
-        const name = `koiguru_report_${todayStr()}_${shortToken(token)}.txt`;
-        downloadTextAsFile(name, outEl.textContent);
-        statusTextEl.textContent = "TXTで保存したぞ。";
-      };
-      if (savePdfBtn) savePdfBtn.onclick = () => {
-        if (!(outEl.textContent || "").trim()) {
-          statusTextEl.textContent = "まだ本文が無いようじゃ。まず生成を完了させてくれ。";
-          return;
-        }
-        statusTextEl.textContent = "PDFに保存する準備じゃ（印刷画面が開くぞい）。";
-        window.print();
-      };
-
+      retryBtn.disabled = cnt >= MAX_RETRY;
+      bindRetry(token);
+      wireSaveButtons(token);
       isRunning = false;
       return;
     }
@@ -776,6 +839,8 @@
         isRunning = false;
         return;
       }
+      const vTier = String(vdata.tier || "");
+      if (vTier === "480" || vTier === "980" || vTier === "1980") tier = vTier;
     } catch (e) {
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent =
@@ -786,6 +851,32 @@
       return;
     }
     
+
+    // 決済が確認できた時点で売上を計上（設計図が無い端末でも計上漏れしないように）
+    // ===== GA4 purchase（売上計上）=====
+// sessionId を transaction_id にする（重複防止の軸になる）
+const gaPurchaseKey = "ga_purchase_sent_" + sessionId;
+
+if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
+  const tierPriceMap = { "480": 480, "980": 980, "1980": 1980 };
+  const tierNameMap = { "480": "診断レポート", "980": "攻略レポート", "1980": "個別戦略書" };
+  const price = tierPriceMap[tier] || 480;
+
+  gtag('event', 'purchase', {
+    transaction_id: sessionId,
+    affiliation: 'koigurulab',
+    value: price,
+    currency: 'JPY',
+    items: [{
+      item_id: 'koiguru_report_' + tier,
+      item_name: tierNameMap[tier] || '恋脳レポート',
+      price: price,
+      quantity: 1
+    }]
+  });
+
+  localStorage.setItem(gaPurchaseKey, "1");
+}
 
     // ★ログは token 取得後
     console.log("token:", token);
@@ -885,30 +976,6 @@ B）Aができない／設計図が消えている（最後の手段）
       isRunning = false;
       return;
     }
-    // ===== GA4 purchase（売上計上）=====
-// sessionId を transaction_id にする（重複防止の軸になる）
-const gaPurchaseKey = "ga_purchase_sent_" + sessionId;
-
-if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
-  const tierPriceMap = { "480": 480, "980": 980, "1980": 1980 };
-  const tierNameMap = { "480": "診断レポート", "980": "攻略レポート", "1980": "個別戦略書" };
-  const price = tierPriceMap[tier] || 480;
-
-  gtag('event', 'purchase', {
-    transaction_id: sessionId,
-    affiliation: 'koigurulab',
-    value: price,
-    currency: 'JPY',
-    items: [{
-      item_id: 'koiguru_report_' + tier,
-      item_name: tierNameMap[tier] || '恋脳レポート',
-      price: price,
-      quantity: 1
-    }]
-  });
-
-  localStorage.setItem(gaPurchaseKey, "1");
-}
 
     try {
       const res = await fetch("/api/paid-report", {
@@ -933,6 +1000,7 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
       }
 
       clearProgressTimers();
+      saveReport(token, { text: outEl.textContent, tier, tools: null });
 
       // ===== 付録ツール生成（tier 980/1980のみ）=====
       if (tier === "980" || tier === "1980") {
@@ -946,6 +1014,7 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
           if (toolsRes.ok) {
             const toolsData = await toolsRes.json();
             renderAppendix(toolsData, tier);
+            saveReport(token, { text: outEl.textContent, tier, tools: toolsData });
           }
         } catch (e) {
           console.warn("paid-tools error (non-fatal):", e);
@@ -985,43 +1054,7 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
       actionsEl.style.display = "flex";
 
       // ✅ 保存/コピーを有効化
-      if (copyBtn) copyBtn.disabled = false;
-      if (saveTxtBtn) saveTxtBtn.disabled = false;
-      if (savePdfBtn) savePdfBtn.disabled = false;
-
-      // ✅ ボタン実装
-      function getFullText() {
-        let text = outEl.textContent || "";
-        const appendixEl = document.getElementById("appendix");
-        if (appendixEl && appendixEl.classList.contains("is-visible")) {
-          text += "\n\n" + (appendixEl.innerText || "");
-        }
-        return text;
-      }
-
-      if (copyBtn) copyBtn.onclick = async () => {
-        try{
-          await copyToClipboard(getFullText());
-          statusTextEl.textContent = "コピーしたぞ。メモでもLINEでも貼るがよい。";
-        }catch{
-          statusTextEl.textContent = "コピーに失敗したようじゃ…。もう一度試してくれ。";
-        }
-      };
-
-      if (saveTxtBtn) saveTxtBtn.onclick = () => {
-        const name = `koiguru_report_${todayStr()}_${shortToken(token)}.txt`;
-        downloadTextAsFile(name, getFullText());
-        statusTextEl.textContent = "TXTで保存したぞ。";
-      };
-
-      if (savePdfBtn) savePdfBtn.onclick = () => {
-        if (!(outEl.textContent || "").trim()) {
-          statusTextEl.textContent = "まだ本文が無いようじゃ。まず生成を完了させてくれ。";
-          return;
-        }
-        statusTextEl.textContent = "PDFに保存する準備じゃ（印刷画面が開くぞい）。";
-        window.print();
-      };
+      wireSaveButtons(token);
 
     } catch (e) {
       clearProgressTimers();
@@ -1034,27 +1067,7 @@ if (!localStorage.getItem(gaPurchaseKey) && typeof gtag === "function") {
     }
 
     // retry（同じtokenで再実行）
-    retryBtn.onclick = async () => {
-      if (!token) return;
-
-      const cnt = getRetryCount(token);
-      if (cnt >= MAX_RETRY) {
-        retryBtn.disabled = true;
-        const statusTextEl2 = document.getElementById("statusText");
-        const retryHint2 = document.getElementById("retryHint");
-        if (retryHint2) retryHint2.textContent = `再生成回数の上限（${MAX_RETRY}回）に達したようじゃ。時間をおいて再度お試しください。`;
-        if (statusTextEl2) statusTextEl2.textContent = "これ以上の再生成はできんようじゃ（上限に到達）。";
-        return;
-      }
-
-      // retryカウントを増やしてから再実行
-      const next = incRetryCount(token);
-      const retryHintEl = document.getElementById("retryHint");
-      if (retryHintEl) retryHintEl.textContent = `途中で止まったら「もう一度生成する」を押すのじゃ。（最大2回／現在 ${next} 回）`;
-
-      // 再実行（fromRetry扱いにする）
-      await run({ fromRetry: true });
-    };
+    bindRetry(token);
 
     // 保存/コピー（本文が出る前は無効、出たら有効化して上でonclick設定）
     // ここでは何もしない
