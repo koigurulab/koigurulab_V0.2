@@ -135,6 +135,42 @@
     }
     .dots.is-hidden{ display:none; }
 
+    /* 完全版の目次と見出し */
+    .toc{
+      display:none;
+      background:#fff;
+      border:1px solid #ffe4e6;
+      border-radius:14px;
+      padding:10px 12px;
+      margin:0 0 10px;
+    }
+    .toc.is-visible{ display:block; }
+    .toc-title{ font-weight:800; font-size:13px; margin-bottom:6px; color:#9f1239; }
+    .toc a{
+      display:inline-block;
+      margin:3px 4px 3px 0;
+      padding:4px 10px;
+      border-radius:999px;
+      background:#fff1f2;
+      color:#9f1239;
+      font-size:12px;
+      font-weight:700;
+      text-decoration:none;
+    }
+    pre .rep-title{ display:inline-block; width:100%; font-size:18px; font-weight:900; line-height:1.5; margin:0 0 6px; }
+    pre .rep-h{
+      display:inline-block;
+      width:100%;
+      box-sizing:border-box;
+      margin:10px 0 4px;
+      padding:8px 12px;
+      border-left:4px solid #f97373;
+      background:#fff1f2;
+      border-radius:8px;
+      font-weight:800;
+      color:#9f1239;
+      scroll-margin-top:12px;
+    }
     pre{
       white-space: pre-wrap;
       word-break: break-word;
@@ -376,6 +412,7 @@
         max-width: 100% !important;
         padding: 0 !important;
       }
+      .toc{ display:none !important; }
       pre{
         border: none !important;
         padding: 0 !important;
@@ -408,6 +445,7 @@
         </span>
       </div>
 
+      <nav id="toc" class="toc" aria-label="目次"></nav>
       <pre id="out"></pre>
 
       <div id="appendix" class="appendix"></div>
@@ -742,6 +780,40 @@
     };
   }
 
+  // 完全版の見出し（【…】）を目立たせ、目次を作る。文字の中身は変えない（コピーやTXT保存はそのまま）
+  function formatReport() {
+    const out = document.getElementById("out");
+    const toc = document.getElementById("toc");
+    if (!out || !out.textContent.trim()) return;
+    const esc = (t) => t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const lines = out.textContent.split("\n");
+    let html = "", titleDone = false, n = 0;
+    const links = [];
+    lines.forEach((line, i) => {
+      const t = line.trim();
+      const last = i === lines.length - 1;
+      const m = t.match(/^【([^】]{1,24})】(.*)$/);
+      const nl = last ? "" : "\n";   // 改行は残す（コピー・TXT保存の中身を変えない）
+      if (m) {
+        n++;
+        html += `<span class="rep-h" id="sec-${n}">${esc(line)}</span>` + nl;
+        const label = (m[1] + (m[2] ? " " + m[2].trim() : "")).slice(0, 18);
+        links.push(`<a href="#sec-${n}">${esc(label)}</a>`);
+        titleDone = true;
+      } else if (!titleDone && t) {
+        html += `<span class="rep-title">${esc(line)}</span>` + nl;
+        titleDone = true;
+      } else {
+        html += esc(line) + nl;
+      }
+    });
+    out.innerHTML = html;
+    if (toc && links.length >= 3) {
+      toc.innerHTML = '<div class="toc-title">目次（押すとその章へ飛ぶぞ）</div>' + links.join("");
+      toc.classList.add("is-visible");
+    }
+  }
+
   // 完成後は見出しと案内文を「できた」に切り替える
   function setFinishedHeader() {
     const t = document.getElementById("pageTitle");
@@ -786,6 +858,8 @@
     dotsEl.classList.remove("is-hidden");
     tokenHint.textContent = "token: " + (token || "-") + " / session_id: " + (sessionId || "-");
     outEl.textContent = "";
+    const tocEl = document.getElementById("toc");
+    if (tocEl) { tocEl.classList.remove("is-visible"); tocEl.innerHTML = ""; }
 
     // 初期は操作系を無効（生成が終わるまで）
     if (copyBtn) copyBtn.disabled = true;
@@ -808,6 +882,7 @@
       dotsEl.classList.add("is-hidden");
       setFinishedHeader();
       outEl.textContent = saved.text;
+      formatReport();
       if (saved.tools) renderAppendix(saved.tools, saved.tier || tier);
       statusTextEl.textContent = "この端末に保存してある完全版じゃ。何度でも読み返すがよい。";
       retryHint.textContent = "読み返しは何度でもできるぞ。PDFやTXTで保存しておくと、ほかの端末でも読めるのじゃ。";
@@ -1051,6 +1126,7 @@ B）Aができない／設計図が消えている（最後の手段）
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
       setFinishedHeader();
+      formatReport();
 
       // ✅ 完了フラグ（リロードで再生成されない）
       setDone(token);
