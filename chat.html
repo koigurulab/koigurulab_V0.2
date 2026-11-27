@@ -208,6 +208,20 @@
   }
 }
 
+    /* 無料レポート以降：入れ子スクロールをやめ、ページ全体で読めるようにする */
+    .chat-card.is-report { height: auto; min-height: 0; }
+    .chat-card.is-report .chat-box { height: auto; overflow: visible; flex: none; }
+    .chat-card.is-report .row, .paywall-block { scroll-margin-top: 84px; }
+    .paywall-block { width: 100%; margin: 4px 0 10px; }
+    .test-bar {
+      margin: 6px 0; padding: 10px; border-radius: 12px; border: 1px dashed #f59e0b;
+      background: #fffbeb; font-size: 12px; line-height: 1.6;
+    }
+    .test-bar b { color: #b45309; }
+    .test-bar button {
+      margin: 6px 6px 0 0; padding: 8px 10px; border-radius: 10px; border: 1px solid #f59e0b;
+      background: #fff; font-weight: 700; font-size: 12px; cursor: pointer;
+    }
     .small { color: var(--muted); font-size: 12px; }
     .step-hint { margin-top: 6px; }
 
@@ -579,10 +593,13 @@
   window.dataLayer = window.dataLayer || [];
   window.gtag = window.gtag || function(){ window.dataLayer.push(arguments); };
   gtag('js', new Date());
-  gtag('config', 'G-PMRW6LK7YG', { send_page_view: true });
+  // テストモード（chat.html?test=1）：計測もログも送らない
+  window.KOI_TEST = new URLSearchParams(location.search).get('test') === '1';
+  if (!window.KOI_TEST) gtag('config', 'G-PMRW6LK7YG', { send_page_view: true });
 
   // イベント送信用の薄いラッパー
   function track(eventName, params){
+    if (window.KOI_TEST) return;
     try{
       if (typeof window.gtag === 'function') {
         window.gtag('event', eventName, params || {});
@@ -1777,6 +1794,7 @@ const DRAFT_KEY = "koi_draft";
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 
 function saveDraft(phase, paywallToken) {
+  if (window.KOI_TEST) return;
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
       phase,
@@ -1874,8 +1892,8 @@ function restoreFromDraft(draft) {
     showProgress();
     updateProgress();
     lockChatInput("相談は完了したぞ");
-    choicesWrap.classList.remove("is-hidden");
     showPaywallButtons(draft.paywallToken);
+    requestAnimationFrame(() => document.getElementById("paywall-block")?.scrollIntoView({ block: "start" }));
   }
 }
 
@@ -1903,7 +1921,7 @@ async function fetchPaidSummaryJson() {
   return JSON.parse(raw);
 }
 
-async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
+async function streamTextPlain(endpoint, bodyObj, bubbleTitle, onBubble) {
   const resp = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1916,6 +1934,7 @@ async function streamTextPlain(endpoint, bodyObj, bubbleTitle) {
   }
 
   const bubble = addAssistantStreamBubble(bubbleTitle || "");
+  if (typeof onBubble === "function") onBubble(bubble);
   const reader = resp.body.getReader();
   const decoder = new TextDecoder("utf-8");
 
@@ -2001,15 +2020,19 @@ hideProgress();
 
     // 2) ローディングバブルを消してからレポートストリーム開始
     stopReportLoading();
+    enterReportLayout();
     const freeReportText = await streamTextPlain(
       "/api/free-report-stream",
       summaryJson,
-      "── ここからは『無料レポート（切り取り）』じゃ。\n\n"
+      "── ここからは『無料レポート（切り取り）』じゃ。\n\n",
+      (bubble) => scrollToReportStart(bubble)
     );
     track('free_report_shown', { turn: MAX_TURNS });
+    // 開き直しても無料レポートが消えないよう、表示ログに残す
+    displayLog.push({ role: "assistant", text: freeReportText || "" });
 
-    // ★ 無料レポートの内容をログ送信
-    fetch("/api/log", {
+    // ★ 無料レポートの内容をログ送信（テストモードでは送らない）
+    if (!window.KOI_TEST) fetch("/api/log", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event: "free_report_shown", profile, report: freeReportText || "" })
@@ -2019,8 +2042,8 @@ hideProgress();
     const token = makeToken();
     saveSessionByToken(token, { summaryJson, profile, history });
     saveDraft("paywall", token);  // ← LINEリンクから戻ってきても復元できる
-    choicesWrap.classList.remove("is-hidden");
-choicesWrap.innerHTML = "";
+    choicesWrap.innerHTML = "";
+    choicesWrap.classList.add("is-hidden");
 
     // 4) 購入ボタン表示
     showPaywallButtons(token);
@@ -2037,17 +2060,35 @@ choicesWrap.innerHTML = "";
   }
 }
 
+function enterReportLayout() {
+  document.getElementById("chat-card")?.classList.add("is-report");
+}
+
+function scrollToReportStart(bubble) {
+  const row = bubble && bubble.closest(".row");
+  if (!row) return;
+  requestAnimationFrame(() => row.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
 function showPaywallButtons(token) {
   choicesWrap.innerHTML = "";
+  choicesWrap.classList.add("is-hidden");
+  enterReportLayout();
   track('paywall_shown', { token_present: !!token });
 
   addAssistant("…ふむ、今日はここまでにしておこうかのう。無料版はここまでじゃ。お主専用の『完全版レポート』を用意しておる。どれにするか選ぶがよい。");
+
+  // 購入カード一式はチャットの中に置く（無料レポートを読んだ後にスクロールして選べる）
+  const block = document.createElement("div");
+  block.className = "paywall-block";
+  block.id = "paywall-block";
+  chat.appendChild(block);
 
   // 注意文
   const warn = document.createElement("div");
   warn.style.cssText = "margin:8px 0;padding:8px 10px;border-radius:10px;border:1px solid rgba(249,115,115,.35);background:rgba(255,228,230,.65);font-weight:700;font-size:11px;line-height:1.5;";
   warn.textContent = "※この端末・このブラウザのまま決済完了まで進むのじゃ";
-  choicesWrap.appendChild(warn);
+  block.appendChild(warn);
 
   // 3-tier cards
   const tierData = [
@@ -2115,6 +2156,10 @@ function showPaywallButtons(token) {
     const btn = card.querySelector(".tier-btn");
     btn.addEventListener("click", async () => {
       track('click_buy', { location: 'paywall', tier: t.tier, token_present: !!token });
+      if (window.KOI_TEST) {
+        addAssistant("（テストモードじゃ。本番の決済になってしまうので、決済画面には進まんぞ。押された：¥" + t.price + "）");
+        return;
+      }
       try {
         setBusy(true);
         statusEl.textContent = "決済画面へ移動中じゃ…";
@@ -2132,13 +2177,13 @@ function showPaywallButtons(token) {
     wrap.appendChild(card);
   });
 
-  choicesWrap.appendChild(wrap);
+  block.appendChild(wrap);
 
   // 補足テキスト
   const note = document.createElement("div");
   note.className = "tier-note";
   note.textContent = "全プラン買い切り。追加料金なし。カフェ1杯分から始められるぞい。";
-  choicesWrap.appendChild(note);
+  block.appendChild(note);
 
   // ── LINE 友達追加リンク ──
   const lineLink = document.createElement("a");
@@ -2148,22 +2193,22 @@ function showPaywallButtons(token) {
   lineLink.rel = "noopener noreferrer";
   lineLink.className = "line-follow-btn";
   lineLink.textContent = "📲 LINE公式をフォローする";
-  choicesWrap.appendChild(lineLink);
+  block.appendChild(lineLink);
 
   const lineNote = document.createElement("div");
   lineNote.className = "line-follow-note";
   lineNote.textContent = "無料で相談し放題のサブスクプランを先行案内するぞ";
-  choicesWrap.appendChild(lineNote);
+  block.appendChild(lineNote);
 
   // 「購入しない」ボタン
   const laterBtn = document.createElement("button");
   laterBtn.className = "tier-later";
   laterBtn.textContent = "今は購入しない";
   laterBtn.addEventListener("click", () => {
+    block.remove();
     addAssistant("了解じゃ。必要になったらまた来るがよいぞ。");
-    choicesWrap.innerHTML = "";
   });
-  choicesWrap.appendChild(laterBtn);
+  block.appendChild(laterBtn);
 }
 
 
@@ -2249,8 +2294,104 @@ freeInput.addEventListener("keydown", (e) => {
   if (e.isComposing) return;  // 変換確定中は許可
   e.preventDefault();         // 変換中でないEnterは無効化（送信もしない）
 });
+
+/* ===========================
+   17) テストモード（chat.html?test=1）
+   - 計測・ログ・下書き保存はしない／決済には進まない
+   - A：サンプルの無料レポートで表示確認（AIなし・費用ゼロ）
+   - B：サンプルの相談内容で、本物のAIで無料レポートを生成（6往復を省略）
+   =========================== */
+const TEST_PROFILE = {
+  name: "テスト", gender: "女性", selfMBTI: "ISFJ", selfLove: "忠犬ハチ公",
+  targetGender: "男性", targetMBTI: "ENTP", targetLove: "ボス猫",
+  ageRange: "20〜22", status: "大学生", relation: "片思い", meeting: "その他",
+  known: "3〜6ヶ月", contact: "2〜3日に1回／送るのは：自分からが多い",
+  worry: "バイト先の先輩が好き。前はLINEの返信が早かったのに、最近は遅くて、3日前に送ったLINEが既読のまま返ってこない。何か気に障ることを言ったのか不安で、夜に考えすぎてしまう。",
+  mental: "不安はあるが日常は回る", style: "1"
+};
+const TEST_TURNS = [
+  ["3日前に送ったLINEが既読のまま返ってこなくて、ずっと気になってます。", "ほう、3日も一人で抱えておったのか。よう話してくれたのう。返事が来ない時間を、お主は全部自分のせいにしてしまっておらんか。"],
+  ["前はすぐ返ってきたので、何かしたのかなって。", "ISFJのお主は、相手の小さな変化に気づける。そのぶん、変化の理由を自分の中に探してしまうんじゃな。"],
+  ["先輩は誰とでも仲がいいタイプです。", "ENTPのあの人は、会話が楽しい時は早い。じゃが、考えたい話題や気分が乗らん時は、平気で寝かせてしまうところがあるのう。"],
+  ["二人で話す時は楽しそうにしてくれます。", "二人の時に楽しそうなら、それは大事な手がかりじゃ。既読の速さより、会った時の様子を信じてよいぞ。"],
+  ["また送ってもいいのか迷ってます。", "答えを求める追いLINEは、今はやめておくのじゃ。返さなくてもいい軽い話題をひとつ、がちょうどよい。"],
+  ["わかりました。少し気持ちが楽になりました。", "それでよい。お主が一番しんどいのは、考え続けて自分をすり減らすことじゃからのう。"]
+];
+const TEST_FREE_REPORT = `── ここからは『無料レポート（切り取り）』じゃ。
+
+【テスト用サンプル】これは表示確認のためのサンプルで、AIが書いたものではないぞ。
+
+【いまのお主の立ち位置】
+お主は、あの人からの返信が止まったことで、自分の言葉を何度も読み返しておる。じゃが、ここまで話を聞いて思うのは、関係が壊れたしるしは今のところ見当たらんということじゃ。
+
+【お主の恋の5つのクセ（2つだけ公開）】
+1. 反応の温度差で心がぐらぐらする
+返信の速さや言葉の温度が少し変わるだけで、お主の心は大きく揺れる。相手を大事に思うほど、この揺れは強くなるんじゃ。
+
+2. 小さな違和感を拾いすぎる
+スタンプの種類、句読点の有無、既読の時間。お主はそういう細かいところに気づける。じゃが、気づいた違和感を全部、自分への評価として受け取ってしまうところがある。
+
+3〜5つ目のクセは、完全版で詳しく書いておるぞ。
+
+【二人の構図】
+言葉で安心したいお主と、その時の気分で動くあの人。すれ違いの多くは、気持ちがないからではなく、ペースがちがうからじゃ。
+
+【今日からできる小さな一手】
+答えを求めるLINEではなく、返しても返さなくてもいい軽い話題をひとつ。あの人が乗りやすい、くだらん話がちょうどよい。
+
+この先、二人の関係をどう動かすか、連絡のタイミングやLINEの文面まで知りたいなら、完全版レポートで書いてやろう。`;
+
+function bootTestMode() {
+  const bar = document.createElement("div");
+  bar.className = "test-bar";
+  bar.innerHTML = "<b>テストモード</b>：計測・ログ・保存はせず、決済にも進まんぞ。";
+  const btnA = document.createElement("button");
+  btnA.textContent = "A：サンプルで表示（AIなし・無料）";
+  const btnB = document.createElement("button");
+  btnB.textContent = "B：AIで無料レポートを作る（6往復を省略）";
+  const btnC = document.createElement("button");
+  btnC.textContent = "C：最初から普通に試す";
+  bar.appendChild(document.createElement("br"));
+  bar.append(btnA, btnB, btnC);
+  chat.appendChild(bar);
+
+  const prepare = () => {
+    bar.remove();
+    Object.assign(profile, TEST_PROFILE);
+    idx = steps.length;
+    choicesWrap.innerHTML = "";
+    choicesWrap.classList.add("is-hidden");
+    stepHint.textContent = "";
+    TEST_TURNS.forEach(([u, a]) => {
+      addUser(u); addAssistant(a);
+      history.push({ role: "user", content: u });
+      history.push({ role: "assistant", content: a });
+    });
+    freeTurnsDone = MAX_TURNS;
+  };
+
+  btnA.addEventListener("click", () => {
+    prepare();
+    lockChatInput("無料レポートは完了じゃ。購入ボタンから進めてくれ。");
+    enterReportLayout();
+    const bubble = addAssistantStreamBubble(TEST_FREE_REPORT);
+    displayLog.push({ role: "assistant", text: TEST_FREE_REPORT });
+    scrollToReportStart(bubble);
+    showPaywallButtons("test-token");
+  });
+  btnB.addEventListener("click", async () => {
+    prepare();
+    await endFreeChatAndShowPaywall();
+  });
+  btnC.addEventListener("click", () => {
+    bar.remove();
+    showAsk();
+  });
+}
+
 track('chat_view', { page: 'chat.html' });
 (function boot(){
+  if (window.KOI_TEST) { bootTestMode(); return; }
   const draft = loadDraft();
   if (draft && draft.phase && draft.profile && Object.keys(draft.profile).length > 0) {
     restoreFromDraft(draft);
