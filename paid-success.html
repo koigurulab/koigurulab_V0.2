@@ -388,7 +388,7 @@
 </head>
 <body>
   <div class="main">
-    <div class="title">完全版を生成中じゃ…</div>
+    <div class="title" id="pageTitle">完全版を生成中じゃ…</div>
     <p class="subnote">※ 実在の人物とは一切関係ありません。／本サービスは恋愛の整理用コンテンツです。</p>
 
     <div class="hero">
@@ -396,7 +396,7 @@
       <div class="heroBox" id="progress-copy">
         決済は完了したようじゃ。<br>
         いま、仙人が「お主の恋のクセ」「相手との噛み合い」「次の一歩」を、ひとつの完全版に編み直しておる。<br>
-        読み終えた頃には、モヤモヤの“正体”が言葉になっておるはずじゃ。少々待っておれ。
+        読み終えた頃には、モヤモヤの正体が言葉になっておるはずじゃ。少々待っておれ。
       </div>
     </div>
 
@@ -742,6 +742,14 @@
     };
   }
 
+  // 完成後は見出しと案内文を「できた」に切り替える
+  function setFinishedHeader() {
+    const t = document.getElementById("pageTitle");
+    if (t) t.textContent = "お主の完全版じゃ";
+    const h = document.getElementById("progress-copy");
+    if (h) h.innerHTML = "できあがったぞ。焦らず、気になる章から読んでいけばよい。<br>この端末なら、あとから開いても読み返せる。ほかの端末で読むなら、下のボタンでPDFかTXTに保存しておくのじゃ。";
+  }
+
   function escHtml(str) {
     const d = document.createElement("div");
     d.textContent = String(str || "");
@@ -798,6 +806,7 @@
     const saved = !opts.fromRetry ? loadSavedReport(token) : null;
     if (saved) {
       dotsEl.classList.add("is-hidden");
+      setFinishedHeader();
       outEl.textContent = saved.text;
       if (saved.tools) renderAppendix(saved.tools, saved.tier || tier);
       statusTextEl.textContent = "この端末に保存してある完全版じゃ。何度でも読み返すがよい。";
@@ -1041,6 +1050,7 @@ B）Aができない／設計図が消えている（最後の手段）
 
       dotsEl.classList.add("is-hidden");
       statusTextEl.textContent = "完成じゃ。ゆっくり読んでいくがよい。";
+      setFinishedHeader();
 
       // ✅ 完了フラグ（リロードで再生成されない）
       setDone(token);
