@@ -1,1 +1,6 @@
 tools/
+# 開発用（本番に出すと誰でも無料でレポート生成できてしまう）
+dev-report.html
+api/dev-paid-report.js
+# 開発メモ（売上・戦略を含むので公開しない）
+CLAUDE.md
