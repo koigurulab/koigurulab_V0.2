@@ -1757,11 +1757,16 @@ function buildUserMeta(profile, phase, userText, opt){
     summary_so_far: dialogState.dialogSummary
   };
 
+  // 締めのターン：system側の指示だけだと質問や選択肢を出してしまうことがあったので、ユーザー側メッセージでも明示する
+  const finalNote = meta.final_turn
+    ? `\n\n【このターンについて】今回は締めのターンじゃ。質問も、番号つきの選択肢も出さない。振り返り・ねぎらい・無料レポートを今から出す案内・締めの言葉だけを書く。`
+    : "";
+
   return `【メタ情報】
 ${JSON.stringify(meta, null, 2)}
 
 【今回のユーザ発言】
-${userText}`;
+${userText}${finalNote}`;
 }
 
 /* ===========================
