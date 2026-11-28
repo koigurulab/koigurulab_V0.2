@@ -2381,6 +2381,13 @@ function showPaywallButtons(token) {
   privacy.textContent = "プライバシーポリシー";
   note.appendChild(document.createTextNode(" "));
   note.appendChild(privacy);
+  const tokusho = document.createElement("a");
+  tokusho.href = "/tokushoho.html";
+  tokusho.target = "_blank";
+  tokusho.rel = "noopener";
+  tokusho.textContent = "特定商取引法に基づく表記";
+  note.appendChild(document.createTextNode(" ／ "));
+  note.appendChild(tokusho);
   block.appendChild(note);
 
   // ── LINE 友達追加リンク ──
